@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "contextgraph-studio"
+version = "0.1.0"
+description = "ContextGraph Studio MVP: repository indexing, retrieval planning, and context-pack delivery."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1.0",
+  "mcp>=1.9,<2.0",
+  "numpy>=2.1,<3.0",
+  "pydantic>=2.9,<3.0",
+  "pydantic-settings>=2.5,<3.0",
+  "pyyaml>=6.0,<7.0",
+  "typer>=0.12,<1.0",
+  "uvicorn>=0.30,<1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.27,<1.0",
+  "pytest>=8.3,<9.0",
+]
+local-embeddings = [
+  "sentence-transformers>=3.0,<4.0",
+]
+
+[project.scripts]
+contextgraph = "contextgraph_studio.cli:app"
+cgstudio = "contextgraph_studio.cli:app"
+
+[tool.setuptools.packages.find]
+include = ["contextgraph_studio*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

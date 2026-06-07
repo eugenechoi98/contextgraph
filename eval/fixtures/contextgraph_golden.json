@@ -1,0 +1,321 @@
+{
+  "dataset": "contextgraph_golden",
+  "description": "Small first-party golden dataset for ContextGraph Studio retrieval evaluation.",
+  "cases": [
+    {
+      "id": "hybrid_retrieval_001",
+      "query": "Adjust hybrid retrieval orchestration to change token budget packing",
+      "task_hint": "general",
+      "repo_id": null,
+      "expected_files": [
+        "contextgraph_studio/services/retriever.py",
+        "contextgraph_studio/retrieval/token_budget.py"
+      ],
+      "critical_files": [
+        "contextgraph_studio/services/retriever.py"
+      ],
+      "helpful_files": [
+        "contextgraph_studio/services/planner.py",
+        "contextgraph_studio/models/context_pack.py"
+      ],
+      "intent_tags": [
+        "retrieval",
+        "hybrid",
+        "token_budget"
+      ],
+      "expects_tests": "implicit",
+      "notes": "The retrieval orchestrator is critical; token budget packing is the most direct adjacent implementation.",
+      "status": "active"
+    },
+    {
+      "id": "index_pipeline_001",
+      "query": "Change repository indexing flow to update scan_run stats correctly",
+      "task_hint": "bug_fix",
+      "repo_id": null,
+      "expected_files": [
+        "contextgraph_studio/services/indexer.py",
+        "contextgraph_studio/db.py"
+      ],
+      "critical_files": [
+        "contextgraph_studio/services/indexer.py"
+      ],
+      "helpful_files": [
+        "contextgraph_studio/cli.py"
+      ],
+      "intent_tags": [
+        "indexing",
+        "scan_run",
+        "stats"
+      ],
+      "expects_tests": "implicit",
+      "notes": "Indexer owns scan_run lifecycle; db.py is an expected secondary file because stats persistence depends on schema shape.",
+      "status": "active"
+    },
+    {
+      "id": "python_parser_001",
+      "query": "Modify Python AST parser so entity extraction keeps function signatures",
+      "task_hint": "bug_fix",
+      "repo_id": null,
+      "expected_files": [
+        "contextgraph_studio/parsers/python_parser.py"
+      ],
+      "critical_files": [
+        "contextgraph_studio/parsers/python_parser.py"
+      ],
+      "helpful_files": [
+        "contextgraph_studio/domain.py",
+        "contextgraph_studio/services/indexer.py"
+      ],
+      "intent_tags": [
+        "parser",
+        "ast",
+        "entities"
+      ],
+      "expects_tests": "implicit",
+      "notes": "The parser is the primary ground truth; domain and indexing are helpful because parsed entities flow through both.",
+      "status": "active"
+    },
+    {
+      "id": "chunking_001",
+      "query": "Tune structure-aware chunking for Python symbols and markdown sections",
+      "task_hint": "general",
+      "repo_id": null,
+      "expected_files": [
+        "contextgraph_studio/services/chunker.py"
+      ],
+      "critical_files": [
+        "contextgraph_studio/services/chunker.py"
+      ],
+      "helpful_files": [
+        "contextgraph_studio/parsers/python_parser.py",
+        "contextgraph_studio/domain.py"
+      ],
+      "intent_tags": [
+        "chunking",
+        "markdown",
+        "python"
+      ],
+      "expects_tests": "implicit",
+      "notes": "Chunking policy lives in services/chunker.py; parser and domain types are common adjacent references.",
+      "status": "active"
+    },
+    {
+      "id": "vector_store_001",
+      "query": "Debug local vector indexing fingerprint reuse and embedding sync",
+      "task_hint": "general",
+      "repo_id": null,
+      "expected_files": [
+        "contextgraph_studio/indexing/vector_store.py"
+      ],
+      "critical_files": [
+        "contextgraph_studio/indexing/vector_store.py"
+      ],
+      "helpful_files": [
+        "contextgraph_studio/indexing/embedder.py",
+        "contextgraph_studio/retrieval/vector.py"
+      ],
+      "intent_tags": [
+        "vector",
+        "embeddings",
+        "indexing"
+      ],
+      "expects_tests": "implicit",
+      "notes": "Fingerprinting and sync rules live in vector_store; embedder and vector retrieval are the nearest helpful dependencies.",
+      "status": "active"
+    },
+    {
+      "id": "graph_builder_001",
+      "query": "Update graph relation extraction for calls and imports during scan",
+      "task_hint": "general",
+      "repo_id": null,
+      "expected_files": [
+        "contextgraph_studio/graph/builder.py"
+      ],
+      "critical_files": [
+        "contextgraph_studio/graph/builder.py"
+      ],
+      "helpful_files": [
+        "contextgraph_studio/services/indexer.py",
+        "contextgraph_studio/graph/scorer.py"
+      ],
+      "intent_tags": [
+        "graph",
+        "relations",
+        "indexing"
+      ],
+      "expects_tests": "implicit",
+      "notes": "Relation extraction is centered in graph/builder.py; indexer and scorer are helpful neighbors, not strict targets.",
+      "status": "active"
+    },
+    {
+      "id": "graph_traversal_001",
+      "query": "Investigate graph expansion hops and relation traversal in retrieval",
+      "task_hint": "general",
+      "repo_id": null,
+      "expected_files": [
+        "contextgraph_studio/graph/traversal.py"
+      ],
+      "critical_files": [
+        "contextgraph_studio/graph/traversal.py"
+      ],
+      "helpful_files": [
+        "contextgraph_studio/services/retriever.py",
+        "contextgraph_studio/graph/scorer.py"
+      ],
+      "intent_tags": [
+        "graph",
+        "traversal",
+        "retrieval"
+      ],
+      "expects_tests": "implicit",
+      "notes": "Traversal logic is primary; retrieval and scorer are helpful because graph expansion surfaces through both.",
+      "status": "active"
+    },
+    {
+      "id": "fusion_001",
+      "query": "Change reciprocal rank fusion weights used by hybrid retrieval",
+      "task_hint": "general",
+      "repo_id": null,
+      "expected_files": [
+        "contextgraph_studio/retrieval/fusion.py"
+      ],
+      "critical_files": [
+        "contextgraph_studio/retrieval/fusion.py"
+      ],
+      "helpful_files": [
+        "contextgraph_studio/services/planner.py",
+        "contextgraph_studio/services/retriever.py"
+      ],
+      "intent_tags": [
+        "fusion",
+        "rrf",
+        "hybrid"
+      ],
+      "expects_tests": "implicit",
+      "notes": "Fusion math is the strict target; planner and retriever are nearby because they own weights and call sites.",
+      "status": "active"
+    },
+    {
+      "id": "api_retrieve_001",
+      "query": "Update the FastAPI retrieve endpoint and trace response behavior",
+      "task_hint": "api_endpoint",
+      "repo_id": null,
+      "expected_files": [
+        "contextgraph_studio/api/main.py"
+      ],
+      "critical_files": [
+        "contextgraph_studio/api/main.py"
+      ],
+      "helpful_files": [
+        "contextgraph_studio/api/schemas.py",
+        "contextgraph_studio/services/retriever.py"
+      ],
+      "intent_tags": [
+        "api",
+        "trace",
+        "retrieve"
+      ],
+      "expects_tests": "implicit",
+      "notes": "The API entrypoint is strict; schemas and retrieval service are useful but adjacent.",
+      "status": "active"
+    },
+    {
+      "id": "cli_eval_001",
+      "query": "Add a CLI command to run local eval reports with ablation configs",
+      "task_hint": "testing",
+      "repo_id": null,
+      "expected_files": [
+        "contextgraph_studio/cli.py",
+        "contextgraph_studio/eval/runner.py"
+      ],
+      "critical_files": [
+        "contextgraph_studio/cli.py"
+      ],
+      "helpful_files": [
+        "contextgraph_studio/eval/configs.py",
+        "tests/test_eval_cli.py"
+      ],
+      "intent_tags": [
+        "eval",
+        "cli",
+        "reports"
+      ],
+      "expects_tests": "explicit",
+      "notes": "The CLI entrypoint is critical; runner and CLI tests are expected because the query explicitly asks for a command.",
+      "status": "active"
+    },
+    {
+      "id": "db_migration_001",
+      "query": "Add a regression test for a new SQLite migration that updates scan_runs columns",
+      "task_hint": "database",
+      "repo_id": null,
+      "expected_files": [
+        "contextgraph_studio/db.py",
+        "tests/test_db_migration.py"
+      ],
+      "critical_files": [
+        "contextgraph_studio/db.py"
+      ],
+      "helpful_files": [
+        "contextgraph_studio/services/indexer.py"
+      ],
+      "intent_tags": [
+        "database",
+        "migration",
+        "tests"
+      ],
+      "expects_tests": "explicit",
+      "notes": "The migration itself is critical; the regression test is expected because the query explicitly asks for test coverage.",
+      "status": "active"
+    },
+    {
+      "id": "eval_metrics_001",
+      "query": "Add pytest coverage for Recall@K and MRR calculation in the eval layer",
+      "task_hint": "testing",
+      "repo_id": null,
+      "expected_files": [
+        "contextgraph_studio/eval/metrics.py",
+        "tests/test_eval_metrics.py"
+      ],
+      "critical_files": [
+        "contextgraph_studio/eval/metrics.py"
+      ],
+      "helpful_files": [
+        "contextgraph_studio/eval/models.py"
+      ],
+      "intent_tags": [
+        "eval",
+        "metrics",
+        "tests"
+      ],
+      "expects_tests": "explicit",
+      "notes": "Metrics implementation is primary; the query explicitly asks for pytest coverage, so the dedicated test file is expected.",
+      "status": "active"
+    },
+    {
+      "id": "eval_runner_001",
+      "query": "Add pytest coverage for eval report generation and ablation execution",
+      "task_hint": "testing",
+      "repo_id": null,
+      "expected_files": [
+        "contextgraph_studio/eval/runner.py",
+        "tests/test_eval_runner.py"
+      ],
+      "critical_files": [
+        "contextgraph_studio/eval/runner.py"
+      ],
+      "helpful_files": [
+        "tests/test_eval_cli.py",
+        "contextgraph_studio/eval/configs.py"
+      ],
+      "intent_tags": [
+        "eval",
+        "runner",
+        "tests"
+      ],
+      "expects_tests": "explicit",
+      "notes": "Runner orchestration is the strict target; CLI and config coverage are helpful because they exercise the same path end to end.",
+      "status": "active"
+    }
+  ]
+}
