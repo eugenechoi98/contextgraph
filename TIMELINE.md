@@ -15,3 +15,4 @@
 - 2026-06-08: 完成 `chunking_001` code-seed 诊断，确认 `chunker.py` 不在 BM25 top 30，本轮不实施 Code Seed Reserve
 - 2026-06-08: 完成 Phase 4B.1，接入最小 `source_code candidate lane` 与轻量 lexical expansion，新增 `tests/test_bm25_candidate_lanes.py`
 - 2026-06-08: `chunking_001` 从 critical miss 提升为 critical hit，但 graph 对该 case 仍未扩展出有效命中
+- 2026-06-08: Completed Phase 4B.2 graph root-cause audit, added `tests/test_graph_diagnostics.py`, and narrowed `chunking_001` graph failure from generic `empty_traversal` to diagnosed `edge_type_filtered`

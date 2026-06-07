@@ -66,3 +66,14 @@ Phase 4B.1 的最小实验选择是：
 - 不改 RRF 公式、graph seed limit、token budget、required/supporting 语义
 
 这个决策的原因是：`chunking_001` 的 primary 问题已经被证据化为 candidate recall，而不是融合层或 graph 层。
+## 2026-06-08: Phase 4B.2 only adds graph diagnostics
+
+`chunking_001` graph empty traversal is now evidence-backed as a seed-shape problem, not a missing-graph-data problem.
+
+- The current six seeds are valid latest-scan entities.
+- They are all BM25 general-lane `doc_section` entities rather than code entities from `chunker.py`.
+- Those seeds only expose incoming `contains`.
+- The current `general` task strategy only allows `calls` and `imports`.
+- The current traversal only expands outgoing edges.
+
+This means the real failure mode is the combination of seed type, edge filtering, and directionality. For Phase 4B.2 we only expose that state in diagnostics. We do not change traversal direction, task-strategy edge types, graph seed policy, BM25 scoring, RRF, or token budget.

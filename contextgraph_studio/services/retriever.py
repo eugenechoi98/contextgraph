@@ -6,7 +6,7 @@ import json
 import re
 import sqlite3
 from collections import OrderedDict
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from time import perf_counter
 from uuid import uuid4
 
@@ -50,6 +50,13 @@ class RouteDiagnostic:
     hit_count: int = 0
     reason: str | None = None
     seed_count: int | None = None
+    seed_entity_count: int | None = None
+    relations_examined: int | None = None
+    relations_filtered: int | None = None
+    expanded_entity_count: int | None = None
+    mapped_chunk_count: int | None = None
+    direction: str | None = None
+    allowed_edge_types: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -68,6 +75,14 @@ class RetrievalExecution:
     effective_flags: dict[str, bool]
     route_diagnostics: dict[str, RouteDiagnostic]
     latency_ms: int
+
+
+@dataclass(slots=True)
+class GraphRecallResult:
+    """Graph recall hits plus internal execution diagnostics."""
+
+    hits: list[ScoredChunk]
+    diagnostic: RouteDiagnostic
 
 
 def normalize_query(query: str) -> str:
@@ -374,27 +389,16 @@ def retrieve_context_debug(
                     [*bm25_hits, *vector_hits],
                     limit=settings.graph_seed_limit,
                 )
-                graph_reason = None
-                if not seed_entity_ids:
-                    graph_reason = "no_entity_seed"
-                else:
-                    graph_hits = run_graph_recall(
-                        connection,
-                        plan,
-                        resolved_repo_id,
-                        scan_run_id,
-                        seed_entity_ids,
-                        recall_top_k,
-                    )
-                    if not graph_hits:
-                        graph_reason = "empty_traversal"
-                route_diagnostics["graph"] = RouteDiagnostic(
-                    requested=True,
-                    executed=True,
-                    hit_count=len(graph_hits),
-                    seed_count=len(seed_entity_ids),
-                    reason=graph_reason,
+                graph_result = run_graph_recall(
+                    connection,
+                    plan,
+                    resolved_repo_id,
+                    scan_run_id,
+                    seed_entity_ids,
+                    recall_top_k,
                 )
+                graph_hits = graph_result.hits
+                route_diagnostics["graph"] = graph_result.diagnostic
             except Exception as exc:
                 message = str(exc)
                 route_warnings.append(f"Graph recall skipped: {message}")
@@ -626,13 +630,38 @@ def run_graph_recall(
     scan_run_id: str,
     seed_entity_ids: list[str],
     top_k: int,
-) -> list[ScoredChunk]:
+) -> GraphRecallResult:
     """Expand from seed entities and map graph hits back to chunks."""
 
+    diagnostic = RouteDiagnostic(
+        requested=True,
+        executed=True,
+        hit_count=0,
+        reason=None,
+        seed_count=len(seed_entity_ids),
+        seed_entity_count=len(seed_entity_ids),
+        relations_examined=0,
+        relations_filtered=0,
+        expanded_entity_count=0,
+        mapped_chunk_count=0,
+        direction="outgoing_only",
+        allowed_edge_types=list(plan.graph_edge_types),
+    )
+
     if not seed_entity_ids or plan.graph_hops <= 0:
-        return []
+        diagnostic.reason = "no_entity_seed" if not seed_entity_ids else "empty_traversal"
+        return GraphRecallResult(hits=[], diagnostic=diagnostic)
 
     from contextgraph_studio.graph.traversal import expand_from_entities
+
+    relation_counts = summarize_seed_relations(
+        connection,
+        scan_run_id,
+        seed_entity_ids,
+        plan.graph_edge_types,
+    )
+    diagnostic.relations_examined = relation_counts["examined"]
+    diagnostic.relations_filtered = relation_counts["filtered"]
 
     graph_results = expand_from_entities(
         connection,
@@ -652,8 +681,10 @@ def run_graph_recall(
             plan.graph_edge_types,
         )
     )
+    diagnostic.expanded_entity_count = len({result.entity_id for result in expanded})
     if not expanded:
-        return []
+        diagnostic.reason = classify_empty_graph_reason(relation_counts)
+        return GraphRecallResult(hits=[], diagnostic=diagnostic)
 
     chunk_rows = load_chunks_for_entities(
         connection,
@@ -666,6 +697,7 @@ def run_graph_recall(
         entity_id = row["entity_id"]
         if entity_id not in best_chunk_by_entity:
             best_chunk_by_entity[entity_id] = row
+    diagnostic.mapped_chunk_count = len(best_chunk_by_entity)
 
     hits: list[ScoredChunk] = []
     for result in expanded:
@@ -698,10 +730,110 @@ def run_graph_recall(
         existing = deduped.get(hit.chunk_id)
         if existing is None or hit.score > existing.score:
             deduped[hit.chunk_id] = hit
-    return sorted(
+    final_hits = sorted(
         deduped.values(),
         key=lambda item: (-item.score, item.graph_distance, item.file_path, item.chunk_id),
     )[:top_k]
+    diagnostic.hit_count = len(final_hits)
+    if final_hits:
+        diagnostic.reason = None
+    elif diagnostic.expanded_entity_count and diagnostic.mapped_chunk_count == 0:
+        diagnostic.reason = "no_chunk_mapping"
+    else:
+        diagnostic.reason = classify_empty_graph_reason(relation_counts)
+    return GraphRecallResult(hits=final_hits, diagnostic=diagnostic)
+
+
+def summarize_seed_relations(
+    connection: sqlite3.Connection,
+    scan_run_id: str,
+    seed_entity_ids: list[str],
+    edge_types: list[str],
+) -> dict[str, int]:
+    """Summarize all relations around the current graph seeds."""
+
+    if not seed_entity_ids:
+        return {
+            "outgoing_total": 0,
+            "incoming_total": 0,
+            "allowed_outgoing": 0,
+            "allowed_incoming": 0,
+            "examined": 0,
+            "filtered": 0,
+        }
+
+    placeholders = ", ".join("?" for _ in seed_entity_ids)
+    edge_clause = ""
+    params: list[object] = [scan_run_id, *seed_entity_ids]
+    if edge_types:
+        edge_placeholders = ", ".join("?" for _ in edge_types)
+        edge_clause = f" AND edge_type IN ({edge_placeholders})"
+        params.extend(edge_types)
+
+    outgoing_total = connection.execute(
+        f"""
+        SELECT COUNT(*)
+        FROM relations
+        WHERE scan_run_id = ?
+          AND from_entity_id IN ({placeholders})
+        """,
+        [scan_run_id, *seed_entity_ids],
+    ).fetchone()[0]
+    incoming_total = connection.execute(
+        f"""
+        SELECT COUNT(*)
+        FROM relations
+        WHERE scan_run_id = ?
+          AND to_entity_id IN ({placeholders})
+        """,
+        [scan_run_id, *seed_entity_ids],
+    ).fetchone()[0]
+    allowed_outgoing = connection.execute(
+        f"""
+        SELECT COUNT(*)
+        FROM relations
+        WHERE scan_run_id = ?
+          AND from_entity_id IN ({placeholders})
+          {edge_clause}
+        """,
+        params,
+    ).fetchone()[0]
+    allowed_incoming = connection.execute(
+        f"""
+        SELECT COUNT(*)
+        FROM relations
+        WHERE scan_run_id = ?
+          AND to_entity_id IN ({placeholders})
+          {edge_clause}
+        """,
+        params,
+    ).fetchone()[0]
+    examined = allowed_outgoing
+    filtered = max(outgoing_total - allowed_outgoing, 0) + incoming_total
+    return {
+        "outgoing_total": int(outgoing_total),
+        "incoming_total": int(incoming_total),
+        "allowed_outgoing": int(allowed_outgoing),
+        "allowed_incoming": int(allowed_incoming),
+        "examined": int(examined),
+        "filtered": int(filtered),
+    }
+
+
+def classify_empty_graph_reason(relation_counts: dict[str, int]) -> str:
+    """Classify why graph traversal produced no usable hits."""
+
+    if relation_counts["outgoing_total"] == 0 and relation_counts["incoming_total"] == 0:
+        return "no_relations"
+    if relation_counts["allowed_outgoing"] > 0:
+        return "empty_traversal"
+    if relation_counts["outgoing_total"] > 0:
+        return "edge_type_filtered"
+    if relation_counts["allowed_incoming"] > 0:
+        return "direction_filtered"
+    if relation_counts["incoming_total"] > 0:
+        return "edge_type_filtered"
+    return "empty_traversal"
 
 
 def build_direct_graph_neighbors(

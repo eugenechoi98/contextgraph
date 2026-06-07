@@ -39,3 +39,11 @@
 - `chunking_001` 在当前 eval 报告中仍有 miss；最新 code-seed 诊断表明 `chunker.py` 不在 BM25 top 30，首次出现于 rank 172，因此本轮不实施 Code Seed Reserve。
 - `chunking_001` 已通过 `source_code candidate lane` 从 critical miss 变为 critical hit；但 graph 对该 case 仍是 `seed_count=6, hit_count=0, reason=empty_traversal`。
 - `cgstudio mcp` 的真实协议可用性已由 `tests/test_mcp_stdio_integration.py` 通过验证；无 client 直接以关闭 stdin 启动时进程返回码为 1，不作为协议不可用结论。
+## Phase 4B.2 Note
+
+- `chunking_001` now stays a critical hit because candidate recall improved, but graph still does not participate for this case.
+- The six graph seeds are valid latest-scan entities, but they are all BM25 general-lane `doc_section` entities.
+- Those seeds each map to a chunk correctly, so this is not an entity-to-chunk mapping failure.
+- Those seeds have no outgoing `calls` or `imports`; they only have incoming `contains`.
+- Current `general` graph traversal is `outgoing_only` and only allows `calls` / `imports`, so the case is now diagnosed as `edge_type_filtered` instead of a generic `empty_traversal`.
+- This round only adds internal graph diagnostics. It does not change BM25, RRF, graph weights, graph seed policy, task strategies, or traversal direction.
