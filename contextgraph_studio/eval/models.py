@@ -35,6 +35,7 @@ class GoldenCase(BaseModel):
     helpful_files: list[str] = Field(default_factory=list)
     intent_tags: list[str] = Field(default_factory=list)
     expects_tests: Literal["explicit", "implicit", "none"] = "implicit"
+    graph_expectation: Literal["required", "helpful", "none"] = "helpful"
     notes: str = ""
     status: Literal["active", "draft"] = "active"
 
@@ -111,6 +112,7 @@ class CaseEvalResult(BaseModel):
     query: str
     task_hint: str | None = None
     expects_tests: Literal["explicit", "implicit", "none"]
+    graph_expectation: Literal["required", "helpful", "none"]
     status: Literal["passed", "failed"]
     expected_files: list[str]
     critical_files: list[str]
@@ -132,9 +134,30 @@ class CaseEvalResult(BaseModel):
     requested_routes: list[str] = Field(default_factory=list)
     executed_routes: list[str] = Field(default_factory=list)
     participating_routes: list[str] = Field(default_factory=list)
+    graph_requested: bool = False
+    graph_executed: bool = False
+    graph_participated: bool = False
+    graph_hit_count: int = 0
+    graph_reason: str | None = None
     effective_flags: dict[str, bool] = Field(default_factory=dict)
     route_diagnostics: dict[str, dict[str, object]] = Field(default_factory=dict)
     error: str | None = None
+
+
+class GraphCharacterizationMetrics(BaseModel):
+    """Graph value characterization summary for one ablation config."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    graph_participation_rate: float
+    graph_required_case_participation_rate: float
+    graph_helpful_case_participation_rate: float
+    graph_none_case_participation_rate: float
+    graph_requested_case_count: int
+    graph_executed_case_count: int
+    graph_participating_case_count: int
+    graph_expectation_counts: dict[str, int]
+    graph_reason_counts: dict[str, int]
 
 
 class EvalMetrics(BaseModel):
@@ -161,6 +184,7 @@ class ConfigEvalResult(BaseModel):
 
     config: EvalConfig
     metrics: EvalMetrics
+    graph_characterization: GraphCharacterizationMetrics
     case_results: list[CaseEvalResult]
     passed_case_count: int
     failed_case_count: int

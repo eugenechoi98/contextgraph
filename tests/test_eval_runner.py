@@ -55,6 +55,7 @@ def write_dataset(path: Path) -> None:
                 "helpful_files": ["session.py"],
                 "intent_tags": ["retrieval"],
                 "expects_tests": "implicit",
+                "graph_expectation": "required",
                 "notes": "Main auth flow.",
                 "status": "active",
             },
@@ -68,6 +69,7 @@ def write_dataset(path: Path) -> None:
                 "helpful_files": [],
                 "intent_tags": ["retrieval"],
                 "expects_tests": "implicit",
+                "graph_expectation": "helpful",
                 "notes": "Forces a per-case failure.",
                 "status": "active",
             },
@@ -81,6 +83,7 @@ def write_dataset(path: Path) -> None:
                 "helpful_files": [],
                 "intent_tags": ["draft"],
                 "expects_tests": "none",
+                "graph_expectation": "none",
                 "notes": "Should not enter aggregate metrics.",
                 "status": "draft",
             }
@@ -160,8 +163,13 @@ def test_run_eval_skips_draft_cases_and_records_failures(tmp_path: Path) -> None
     assert bm25_only.case_results[0].participating_routes == ["bm25"]
     assert bm25_only.case_results[0].route_diagnostics["vector"]["reason"] == "disabled_by_ablation"
     assert bm25_only.case_results[0].route_diagnostics["graph"]["reason"] == "disabled_by_ablation"
+    assert bm25_only.case_results[0].graph_expectation == "required"
+    assert bm25_only.graph_characterization.graph_expectation_counts == {"required": 1, "helpful": 1, "none": 0}
+    assert bm25_only.graph_characterization.graph_participation_rate == 0.0
     assert bm25_graph.case_results[0].requested_routes == ["bm25", "graph"]
     assert "graph" in bm25_graph.case_results[0].executed_routes
+    assert bm25_graph.graph_characterization.graph_requested_case_count == 1
+    assert bm25_graph.graph_characterization.graph_executed_case_count == 1
     assert bm25_only.case_results[1].status == "failed"
     assert "No successful scan found" in (bm25_only.case_results[1].error or "")
 

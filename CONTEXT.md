@@ -47,3 +47,13 @@
 - Those seeds have no outgoing `calls` or `imports`; they only have incoming `contains`.
 - Current `general` graph traversal is `outgoing_only` and only allows `calls` / `imports`, so the case is now diagnosed as `edge_type_filtered` instead of a generic `empty_traversal`.
 - This round only adds internal graph diagnostics. It does not change BM25, RRF, graph weights, graph seed policy, task strategies, or traversal direction.
+
+## Phase 4B.3 Note
+
+- The first-party golden dataset is now stabilized at `13` active cases and carries a non-scoring `graph_expectation` label: `required`, `helpful`, or `none`.
+- Latest full validation is `77 passed, 1 warning`.
+- Latest full eval runs without `--max-cases` and keeps `failed_case_count=0`.
+- Under graph-enabled configs, `graph_participation_rate=12/13`, `graph_required_case_participation_rate=4/4`, and the only observed non-participation reason is `edge_type_filtered` on `chunking_001`.
+- `bm25_graph` improves `MRR` over `bm25_only` from `0.7538` to `0.8179` while `Recall@5` stays flat at `0.8077`, so graph currently looks more useful for ranking than for raw recall on this repo.
+- `graph_expectation` is diagnostic only; it does not change strict retrieval metrics or `ContextPack` schema.
+- `vector_quality_valid` remains `false`.

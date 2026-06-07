@@ -10,7 +10,13 @@ from contextgraph_studio.config import Settings
 from contextgraph_studio.db import connect, init_db
 from contextgraph_studio.domain import utc_now_epoch
 from contextgraph_studio.eval.configs import resolve_eval_configs
-from contextgraph_studio.eval.metrics import DEFAULT_KS, aggregate_metrics, build_case_result, dedupe_files
+from contextgraph_studio.eval.metrics import (
+    DEFAULT_KS,
+    aggregate_metrics,
+    build_case_result,
+    build_graph_characterization,
+    dedupe_files,
+)
 from contextgraph_studio.eval.models import ConfigEvalResult, EvalConfig, EvalRunResult, GoldenDataset
 from contextgraph_studio.services.retriever import retrieve_context_debug
 from contextgraph_studio.services.scan_resolver import resolve_repo_and_scan_run
@@ -136,10 +142,12 @@ def run_eval(
             case_results.append(case_result)
 
         metrics = aggregate_metrics(active_cases, case_results)
+        graph_characterization = build_graph_characterization(case_results)
         config_results.append(
             ConfigEvalResult(
                 config=config,
                 metrics=metrics,
+                graph_characterization=graph_characterization,
                 case_results=case_results,
                 passed_case_count=sum(1 for item in case_results if item.error is None),
                 failed_case_count=sum(1 for item in case_results if item.error is not None),
@@ -254,6 +262,47 @@ def render_markdown_report(result: EvalRunResult) -> str:
         )
 
     for config_result in result.configs:
+        graph = config_result.graph_characterization
+        lines.extend(
+            [
+                "",
+                f"## Graph Characterization - {config_result.config.name}",
+                "",
+                f"- graph_participation_rate: `{graph.graph_participation_rate:.3f}`",
+                f"- graph_required_case_participation_rate: `{graph.graph_required_case_participation_rate:.3f}`",
+                f"- graph_helpful_case_participation_rate: `{graph.graph_helpful_case_participation_rate:.3f}`",
+                f"- graph_none_case_participation_rate: `{graph.graph_none_case_participation_rate:.3f}`",
+                f"- graph_requested_case_count: `{graph.graph_requested_case_count}`",
+                f"- graph_executed_case_count: `{graph.graph_executed_case_count}`",
+                f"- graph_participating_case_count: `{graph.graph_participating_case_count}`",
+                f"- graph_expectation_counts: `{json.dumps(graph.graph_expectation_counts, ensure_ascii=False, sort_keys=True)}`",
+                f"- graph_reason_counts: `{json.dumps(graph.graph_reason_counts, ensure_ascii=False, sort_keys=True)}`",
+                "",
+                "| case_id | task_hint | graph_expectation | requested_graph | executed_graph | participating_graph | seed_count | hit_count | reason |",
+                "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
+            ]
+        )
+        for case in config_result.case_results:
+            graph_diag = case.route_diagnostics.get("graph", {})
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        case.case_id,
+                        case.task_hint or "general",
+                        case.graph_expectation,
+                        str(case.graph_requested).lower(),
+                        str(case.graph_executed).lower(),
+                        str(case.graph_participated).lower(),
+                        str(graph_diag.get("seed_count", 0) or 0),
+                        str(case.graph_hit_count),
+                        case.graph_reason or "(none)",
+                    ]
+                )
+                + " |"
+            )
+
+    for config_result in result.configs:
         lines.extend(
             [
                 "",
@@ -290,6 +339,7 @@ def render_markdown_report(result: EvalRunResult) -> str:
                     "",
                     f"- status: `{case.status}`",
                     f"- query: {case.query}",
+                    f"- graph_expectation: `{case.graph_expectation}`",
                     f"- expected: {', '.join(case.expected_files)}",
                     f"- critical: {', '.join(case.critical_files) if case.critical_files else '(none)'}",
                     f"- helpful: {', '.join(case.helpful_files) if case.helpful_files else '(none)'}",
@@ -301,6 +351,11 @@ def render_markdown_report(result: EvalRunResult) -> str:
                     f"- requested_routes: {', '.join(case.requested_routes) if case.requested_routes else '(none)'}",
                     f"- executed_routes: {', '.join(case.executed_routes) if case.executed_routes else '(none)'}",
                     f"- participating_routes: {', '.join(case.participating_routes) if case.participating_routes else '(none)'}",
+                    f"- graph_requested: `{str(case.graph_requested).lower()}`",
+                    f"- graph_executed: `{str(case.graph_executed).lower()}`",
+                    f"- graph_participated: `{str(case.graph_participated).lower()}`",
+                    f"- graph_hit_count: `{case.graph_hit_count}`",
+                    f"- graph_reason: `{case.graph_reason}`",
                     f"- effective_flags: `{json.dumps(case.effective_flags, ensure_ascii=False, sort_keys=True)}`",
                     f"- route_diagnostics: `{json.dumps(case.route_diagnostics, ensure_ascii=False, sort_keys=True)}`",
                     f"- errors: {case.error or '(none)'}",
@@ -313,6 +368,8 @@ def render_markdown_report(result: EvalRunResult) -> str:
             "## Validity Notes",
             "",
             f"- {result.vector_quality_note}",
+            "- graph_expectation is a human-authored characterization label and is not a strict pass/fail gate.",
+            "- Graph is not required to participate for every query; 'none' cases can legitimately have no graph contribution.",
             "- graph_seeded_by_bm25 is not implemented in this phase and is not reported as graph_only.",
             "- This dataset is a small first-party repository golden dataset, not a general benchmark.",
             "",

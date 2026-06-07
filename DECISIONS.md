@@ -77,3 +77,31 @@ Phase 4B.1 的最小实验选择是：
 - The current traversal only expands outgoing edges.
 
 This means the real failure mode is the combination of seed type, edge filtering, and directionality. For Phase 4B.2 we only expose that state in diagnostics. We do not change traversal direction, task-strategy edge types, graph seed policy, BM25 scoring, RRF, or token budget.
+## 2026-06-08: Graph expectation is a characterization label, not a scoring gate
+
+Phase 4B.3 expands the first-party golden dataset and adds `graph_expectation` with three values:
+
+- `required`
+- `helpful`
+- `none`
+
+This label is used to analyze where graph participation is structurally valuable, but it does not directly alter:
+
+- strict pass/fail
+- Recall@K
+- MRR
+- critical hit rate
+- `ContextPack` schema
+
+The reason is that graph participation by itself does not prove necessity, especially when `graph_expectation=none` cases can still receive graph hits under the current seeded traversal design.
+## 2026-06-08: Characterize graph value before changing retrieval behavior
+
+The expanded dataset currently shows that graph-enabled configs improve `MRR` while leaving `Recall@5` flat, and all `required` graph cases participate successfully.
+
+That means the next decision should not start from "force graph to help `chunking_001`". It should start from evidence:
+
+- graph is already adding value on structurally connected tasks
+- `chunking_001` is an outlier with a diagnosed seed-shape failure mode
+- graph also participates in several `none` cases, so the open product question is selectivity, not mere participation
+
+Therefore this phase stops at characterization and does not change BM25, graph traversal, edge types, RRF, token budget, or graph seed policy.

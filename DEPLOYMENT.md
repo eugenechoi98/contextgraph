@@ -28,7 +28,7 @@ python -m venv .venv
 .\.venv\Scripts\cgstudio.exe init-db
 .\.venv\Scripts\cgstudio.exe index .
 .\.venv\Scripts\cgstudio.exe retrieve "verify token auth flow" --task-hint security_auth --max-tokens 8000 --repo-id 8bf02440-5d4e-5fa2-8916-a955c2c21fd2
-.\.venv\Scripts\cgstudio.exe eval --repo-id 8bf02440-5d4e-5fa2-8916-a955c2c21fd2 --dataset eval\fixtures\contextgraph_golden.json --max-cases 5
+.\.venv\Scripts\cgstudio.exe eval --repo-id 8bf02440-5d4e-5fa2-8916-a955c2c21fd2 --dataset eval\fixtures\contextgraph_golden.json
 .\.venv\Scripts\python.exe -m pytest tests
 ```
 
@@ -40,11 +40,10 @@ python -m venv .venv
 
 ## 当前验证基线
 
-- `pytest --collect-only -q tests` -> `59 collected`
-- `pytest tests` -> `59 passed`
+- `pytest tests` -> `77 passed`
 - `cgstudio index .` -> `parse_errors = 0`
 - `cgstudio retrieve ...` -> `retrieval_strategy = ["bm25", "graph"]`
-- `cgstudio eval ... --max-cases 5` -> `failed_case_count = 0`
+- `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
 
 ## 注意事项
 

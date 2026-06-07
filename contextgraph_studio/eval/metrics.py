@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 
-from contextgraph_studio.eval.models import CaseEvalResult, EvalMetrics, GoldenCase
+from contextgraph_studio.eval.models import CaseEvalResult, EvalMetrics, GoldenCase, GraphCharacterizationMetrics
 
 
 DEFAULT_KS: tuple[int, ...] = (1, 3, 5, 10)
@@ -57,11 +57,19 @@ def build_case_result(
     critical_any_hit = any(path in retrieved for path in critical_set) if critical_set else True
     critical_all_hit = all(path in retrieved for path in critical_set) if critical_set else True
 
+    graph_diagnostic = dict((route_diagnostics or {}).get("graph", {}))
+    graph_requested = "graph" in list(requested_routes or [])
+    graph_executed = "graph" in list(executed_routes or [])
+    graph_participated = "graph" in list(participating_routes or [])
+    graph_hit_count = int(graph_diagnostic.get("hit_count", 0) or 0)
+    graph_reason = graph_diagnostic.get("reason")
+
     return CaseEvalResult(
         case_id=case.id,
         query=case.query,
         task_hint=case.task_hint,
         expects_tests=case.expects_tests,
+        graph_expectation=case.graph_expectation,
         status="failed" if error else "passed",
         expected_files=case.expected_files,
         critical_files=case.critical_files,
@@ -83,6 +91,11 @@ def build_case_result(
         requested_routes=list(requested_routes or []),
         executed_routes=list(executed_routes or []),
         participating_routes=list(participating_routes or []),
+        graph_requested=graph_requested,
+        graph_executed=graph_executed,
+        graph_participated=graph_participated,
+        graph_hit_count=graph_hit_count,
+        graph_reason=graph_reason if isinstance(graph_reason, str) else None,
         effective_flags=dict(effective_flags or {}),
         route_diagnostics=dict(route_diagnostics or {}),
         error=error,
@@ -149,4 +162,40 @@ def aggregate_metrics(
         avg_token_count=avg_token_count,
         avg_latency_ms=avg_latency_ms,
         missed_critical_files=missed_critical,
+    )
+
+
+def build_graph_characterization(results: list[CaseEvalResult]) -> GraphCharacterizationMetrics:
+    """Aggregate non-scoring graph value diagnostics for one config."""
+
+    case_count = len(results)
+    graph_participating_case_count = sum(1 for result in results if result.graph_participated)
+    graph_executed_case_count = sum(1 for result in results if result.graph_executed)
+    graph_requested_case_count = sum(1 for result in results if result.graph_requested)
+
+    expectation_groups: dict[str, list[CaseEvalResult]] = {
+        "required": [result for result in results if result.graph_expectation == "required"],
+        "helpful": [result for result in results if result.graph_expectation == "helpful"],
+        "none": [result for result in results if result.graph_expectation == "none"],
+    }
+
+    def _participation_rate(items: list[CaseEvalResult]) -> float:
+        return (sum(1 for result in items if result.graph_participated) / len(items)) if items else 0.0
+
+    reason_counts: dict[str, int] = {}
+    for result in results:
+        reason = result.graph_reason
+        if reason:
+            reason_counts[reason] = reason_counts.get(reason, 0) + 1
+
+    return GraphCharacterizationMetrics(
+        graph_participation_rate=(graph_participating_case_count / case_count) if case_count else 0.0,
+        graph_required_case_participation_rate=_participation_rate(expectation_groups["required"]),
+        graph_helpful_case_participation_rate=_participation_rate(expectation_groups["helpful"]),
+        graph_none_case_participation_rate=_participation_rate(expectation_groups["none"]),
+        graph_requested_case_count=graph_requested_case_count,
+        graph_executed_case_count=graph_executed_case_count,
+        graph_participating_case_count=graph_participating_case_count,
+        graph_expectation_counts={key: len(value) for key, value in expectation_groups.items()},
+        graph_reason_counts=dict(sorted(reason_counts.items())),
     )

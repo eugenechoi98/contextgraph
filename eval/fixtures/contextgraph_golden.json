@@ -24,6 +24,7 @@
         "token_budget"
       ],
       "expects_tests": "implicit",
+      "graph_expectation": "required",
       "notes": "The retrieval orchestrator is critical; token budget packing is the most direct adjacent implementation.",
       "status": "active"
     },
@@ -48,6 +49,7 @@
         "stats"
       ],
       "expects_tests": "implicit",
+      "graph_expectation": "helpful",
       "notes": "Indexer owns scan_run lifecycle; db.py is an expected secondary file because stats persistence depends on schema shape.",
       "status": "active"
     },
@@ -72,6 +74,7 @@
         "entities"
       ],
       "expects_tests": "implicit",
+      "graph_expectation": "none",
       "notes": "The parser is the primary ground truth; domain and indexing are helpful because parsed entities flow through both.",
       "status": "active"
     },
@@ -96,6 +99,7 @@
         "python"
       ],
       "expects_tests": "implicit",
+      "graph_expectation": "none",
       "notes": "Chunking policy lives in services/chunker.py; parser and domain types are common adjacent references.",
       "status": "active"
     },
@@ -120,6 +124,7 @@
         "indexing"
       ],
       "expects_tests": "implicit",
+      "graph_expectation": "helpful",
       "notes": "Fingerprinting and sync rules live in vector_store; embedder and vector retrieval are the nearest helpful dependencies.",
       "status": "active"
     },
@@ -144,6 +149,7 @@
         "indexing"
       ],
       "expects_tests": "implicit",
+      "graph_expectation": "required",
       "notes": "Relation extraction is centered in graph/builder.py; indexer and scorer are helpful neighbors, not strict targets.",
       "status": "active"
     },
@@ -168,6 +174,7 @@
         "retrieval"
       ],
       "expects_tests": "implicit",
+      "graph_expectation": "required",
       "notes": "Traversal logic is primary; retrieval and scorer are helpful because graph expansion surfaces through both.",
       "status": "active"
     },
@@ -192,6 +199,7 @@
         "hybrid"
       ],
       "expects_tests": "implicit",
+      "graph_expectation": "helpful",
       "notes": "Fusion math is the strict target; planner and retriever are nearby because they own weights and call sites.",
       "status": "active"
     },
@@ -216,6 +224,7 @@
         "retrieve"
       ],
       "expects_tests": "implicit",
+      "graph_expectation": "required",
       "notes": "The API entrypoint is strict; schemas and retrieval service are useful but adjacent.",
       "status": "active"
     },
@@ -241,6 +250,7 @@
         "reports"
       ],
       "expects_tests": "explicit",
+      "graph_expectation": "helpful",
       "notes": "The CLI entrypoint is critical; runner and CLI tests are expected because the query explicitly asks for a command.",
       "status": "active"
     },
@@ -265,6 +275,7 @@
         "tests"
       ],
       "expects_tests": "explicit",
+      "graph_expectation": "none",
       "notes": "The migration itself is critical; the regression test is expected because the query explicitly asks for test coverage.",
       "status": "active"
     },
@@ -289,6 +300,7 @@
         "tests"
       ],
       "expects_tests": "explicit",
+      "graph_expectation": "none",
       "notes": "Metrics implementation is primary; the query explicitly asks for pytest coverage, so the dedicated test file is expected.",
       "status": "active"
     },
@@ -314,6 +326,7 @@
         "tests"
       ],
       "expects_tests": "explicit",
+      "graph_expectation": "helpful",
       "notes": "Runner orchestration is the strict target; CLI and config coverage are helpful because they exercise the same path end to end.",
       "status": "active"
     }
