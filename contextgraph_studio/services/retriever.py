@@ -6,6 +6,7 @@ import json
 import re
 import sqlite3
 from collections import OrderedDict
+from dataclasses import asdict, dataclass
 from time import perf_counter
 from uuid import uuid4
 
@@ -13,6 +14,7 @@ from contextgraph_studio.config import Settings
 from contextgraph_studio.db import connect, init_db
 from contextgraph_studio.domain import ScoredChunk, SearchHit, utc_now_epoch
 from contextgraph_studio.graph.scorer import compute_graph_score
+from contextgraph_studio.indexing.vector_store import count_embeddings_for_scan
 from contextgraph_studio.models.context_pack import ChunkResult, ContextPack, GraphPath
 from contextgraph_studio.retrieval.fusion import weighted_reciprocal_rank_fusion
 from contextgraph_studio.retrieval.reranker import IdentityReranker
@@ -23,6 +25,35 @@ from contextgraph_studio.services.scan_resolver import resolve_repo_and_scan_run
 
 
 TERM_RE = re.compile(r"[A-Za-z0-9_./-]+")
+
+
+@dataclass(slots=True)
+class RouteDiagnostic:
+    """Lightweight per-route execution diagnostics."""
+
+    requested: bool
+    executed: bool
+    hit_count: int = 0
+    reason: str | None = None
+    seed_count: int | None = None
+
+
+@dataclass(slots=True)
+class RetrievalExecution:
+    """Internal retrieval execution result with route diagnostics."""
+
+    pack: ContextPack
+    bm25_hits: list[ScoredChunk]
+    vector_hits: list[ScoredChunk]
+    graph_hits: list[ScoredChunk]
+    reranked_hits: list[ScoredChunk]
+    filtered_out: list[FilteredChunk]
+    requested_routes: list[str]
+    executed_routes: list[str]
+    participating_routes: list[str]
+    effective_flags: dict[str, bool]
+    route_diagnostics: dict[str, RouteDiagnostic]
+    latency_ms: int
 
 
 def normalize_query(query: str) -> str:
@@ -160,41 +191,134 @@ def retrieve_context(
 ) -> ContextPack:
     """Execute hybrid retrieval and return a Context Pack."""
 
+    pack, _ = retrieve_context_debug(
+        query,
+        settings,
+        top_k=top_k,
+        task_hint=task_hint,
+        max_tokens=max_tokens,
+        repo_id=repo_id,
+        trace=trace,
+    )
+    return pack
+
+
+def retrieve_context_debug(
+    query: str,
+    settings: Settings,
+    top_k: int | None = None,
+    task_hint: str | None = None,
+    max_tokens: int | None = None,
+    repo_id: str | None = None,
+    trace: bool = True,
+) -> tuple[ContextPack, dict[str, object]]:
+    """Execute hybrid retrieval and return a Context Pack plus lightweight debug metadata."""
+
     init_db(settings)
     started = perf_counter()
     plan = build_plan(query, settings, task_hint=task_hint, max_tokens=max_tokens)
     trace_id = str(uuid4())
     recall_top_k = top_k or settings.default_top_k
     route_warnings: list[str] = []
+    requested_routes = ["bm25"]
+    if settings.hybrid_vector_enabled:
+        requested_routes.append("vector")
+    if settings.hybrid_graph_enabled:
+        requested_routes.append("graph")
+    effective_flags = {
+        "hybrid_vector_enabled": settings.hybrid_vector_enabled,
+        "hybrid_graph_enabled": settings.hybrid_graph_enabled,
+    }
+    route_diagnostics = {
+        "bm25": RouteDiagnostic(requested=True, executed=False, reason="not_started"),
+        "vector": RouteDiagnostic(
+            requested=settings.hybrid_vector_enabled,
+            executed=False,
+            reason="disabled_by_ablation" if not settings.hybrid_vector_enabled else "not_started",
+        ),
+        "graph": RouteDiagnostic(
+            requested=settings.hybrid_graph_enabled,
+            executed=False,
+            reason="disabled_by_ablation" if not settings.hybrid_graph_enabled else "not_started",
+        ),
+    }
+    executed_routes: list[str] = []
 
     with connect(settings.database_path) as connection:
         resolved_repo_id, scan_run_id = resolve_repo_and_scan_run(connection, repo_id)
         bm25_hits = run_bm25_recall(connection, plan, resolved_repo_id, scan_run_id, recall_top_k)
+        executed_routes.append("bm25")
+        route_diagnostics["bm25"] = RouteDiagnostic(
+            requested=True,
+            executed=True,
+            hit_count=len(bm25_hits),
+            reason=None if bm25_hits else "no_hits",
+        )
 
         vector_hits: list[ScoredChunk] = []
         if settings.hybrid_vector_enabled:
+            executed_routes.append("vector")
             try:
                 vector_hits = run_vector_recall(plan, settings, resolved_repo_id, recall_top_k)
+                vector_reason = None
+                if not vector_hits:
+                    total_embeddings = count_embeddings_for_scan(connection, resolved_repo_id, scan_run_id)
+                    vector_reason = "missing_embeddings" if total_embeddings == 0 else "no_hits"
+                route_diagnostics["vector"] = RouteDiagnostic(
+                    requested=True,
+                    executed=True,
+                    hit_count=len(vector_hits),
+                    reason=vector_reason,
+                )
             except Exception as exc:
-                route_warnings.append(f"Vector recall skipped: {exc}")
+                message = str(exc)
+                route_warnings.append(f"Vector recall skipped: {message}")
+                route_diagnostics["vector"] = RouteDiagnostic(
+                    requested=True,
+                    executed=True,
+                    hit_count=0,
+                    reason=message,
+                )
 
         graph_hits: list[ScoredChunk] = []
         if settings.hybrid_graph_enabled:
+            executed_routes.append("graph")
             try:
                 seed_entity_ids = extract_graph_seed_entity_ids(
                     [*bm25_hits, *vector_hits],
                     limit=settings.graph_seed_limit,
                 )
-                graph_hits = run_graph_recall(
-                    connection,
-                    plan,
-                    resolved_repo_id,
-                    scan_run_id,
-                    seed_entity_ids,
-                    recall_top_k,
+                graph_reason = None
+                if not seed_entity_ids:
+                    graph_reason = "no_entity_seed"
+                else:
+                    graph_hits = run_graph_recall(
+                        connection,
+                        plan,
+                        resolved_repo_id,
+                        scan_run_id,
+                        seed_entity_ids,
+                        recall_top_k,
+                    )
+                    if not graph_hits:
+                        graph_reason = "empty_traversal"
+                route_diagnostics["graph"] = RouteDiagnostic(
+                    requested=True,
+                    executed=True,
+                    hit_count=len(graph_hits),
+                    seed_count=len(seed_entity_ids),
+                    reason=graph_reason,
                 )
             except Exception as exc:
-                route_warnings.append(f"Graph recall skipped: {exc}")
+                message = str(exc)
+                route_warnings.append(f"Graph recall skipped: {message}")
+                route_diagnostics["graph"] = RouteDiagnostic(
+                    requested=True,
+                    executed=True,
+                    hit_count=0,
+                    seed_count=0,
+                    reason=message,
+                )
 
         route_rankings = OrderedDict(
             (
@@ -223,9 +347,17 @@ def retrieve_context(
             packed=packed,
             route_warnings=route_warnings,
         )
+        latency_ms = int((perf_counter() - started) * 1000)
+        debug_payload = {
+            "requested_routes": requested_routes,
+            "effective_flags": effective_flags,
+            "executed_routes": executed_routes,
+            "participating_routes": retrieval_strategy,
+            "route_diagnostics": {name: asdict(item) for name, item in route_diagnostics.items()},
+            "latency_ms": latency_ms,
+        }
 
         if trace:
-            latency_ms = int((perf_counter() - started) * 1000)
             persist_trace(
                 connection=connection,
                 trace_id=trace_id,
@@ -244,7 +376,7 @@ def retrieve_context(
                 reranker_name=reranker.name,
             )
             connection.commit()
-    return pack
+    return pack, debug_payload
 
 
 def run_bm25_recall(

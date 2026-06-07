@@ -14,6 +14,7 @@ ContextGraph Studio 是一个面向 AI Coding Agent 的工程化上下文检索�
 - schema-first `ContextPack`
 - CLI / FastAPI / MCP stdio server
 - golden dataset eval runner
+- eval ablation route diagnostics (`requested / executed / participating`)
 
 ## Canonical Workspace
 
@@ -36,7 +37,7 @@ python -m venv .venv
 ## 当前验证状态
 
 - `pytest --collect-only -q tests` -> `59 collected`
-- `pytest tests` -> `59 passed`
+- `pytest tests` -> `61 passed`
 - `cgstudio index .` -> `parse_errors = 0`
 - `cgstudio eval ...` -> `failed_case_count = 0`
 
@@ -45,3 +46,4 @@ python -m venv .venv
 - deterministic embedding 只用于离线开发与流程校验
 - `vector_quality_valid=false` 是预期行为
 - intake 默认排除 `.tmp*`、`tmp_pytest*`、`eval/fixtures`、`eval/reports`
+- `chunking_001` 当前仍是 lexical miss，`chunker.py` 不在 BM25 top 30，因此本轮未启用 Code Seed Reserve

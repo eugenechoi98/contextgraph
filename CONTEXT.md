@@ -20,6 +20,8 @@
 - `cgstudio retrieve "verify token auth flow" --task-hint security_auth` 当前返回 `retrieval_strategy=["bm25", "graph"]`。
 - `cgstudio eval --max-cases 5` 当前 `failed_case_count=0`，并生成最新 JSON / Markdown 报告。
 - `vector_quality_valid=false` 仍是预期行为，因为当前 embedding provider 仍是 deterministic。
+- Phase 4B.0 已补齐 eval ablation 诊断字段：`requested_routes / executed_routes / participating_routes / effective_flags / route_diagnostics`。
+- 全量测试现为 `61 passed, 1 warning`，新增覆盖 `tests/test_eval_ablation_wiring.py`。
 
 ## 基线一致性说明
 
@@ -32,5 +34,5 @@
 
 - `chunks` 仍是 source of truth；`chunks_fts`、`embeddings`、`relations`、`eval_runs` 都是派生或附属层。
 - intake 当前默认排除 `.tmp*`、`tmp_pytest*`、`eval/fixtures`、`eval/reports`，避免评测泄题。
-- `chunking_001` 在当前 eval 报告中仍有 miss；本轮只记录，不调整 retrieval 算法、权重或 golden truth。
+- `chunking_001` 在当前 eval 报告中仍有 miss；最新 code-seed 诊断表明 `chunker.py` 不在 BM25 top 30，首次出现于 rank 172，因此本轮不实施 Code Seed Reserve。
 - `cgstudio mcp` 的真实协议可用性已由 `tests/test_mcp_stdio_integration.py` 通过验证；无 client 直接以关闭 stdin 启动时进程返回码为 1，不作为协议不可用结论。

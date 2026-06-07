@@ -129,6 +129,11 @@ class CaseEvalResult(BaseModel):
     latency_ms: int | None = None
     trace_id: str | None = None
     retrieval_strategy: list[str] = Field(default_factory=list)
+    requested_routes: list[str] = Field(default_factory=list)
+    executed_routes: list[str] = Field(default_factory=list)
+    participating_routes: list[str] = Field(default_factory=list)
+    effective_flags: dict[str, bool] = Field(default_factory=dict)
+    route_diagnostics: dict[str, dict[str, object]] = Field(default_factory=dict)
     error: str | None = None
 
 

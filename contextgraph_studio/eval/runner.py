@@ -12,7 +12,7 @@ from contextgraph_studio.domain import utc_now_epoch
 from contextgraph_studio.eval.configs import resolve_eval_configs
 from contextgraph_studio.eval.metrics import DEFAULT_KS, aggregate_metrics, build_case_result, dedupe_files
 from contextgraph_studio.eval.models import ConfigEvalResult, EvalConfig, EvalRunResult, GoldenDataset
-from contextgraph_studio.services.retriever import get_trace, retrieve_context
+from contextgraph_studio.services.retriever import retrieve_context_debug
 from contextgraph_studio.services.scan_resolver import resolve_repo_and_scan_run
 
 
@@ -96,7 +96,7 @@ def run_eval(
         for case in active_cases:
             case_repo_id = case.repo_id or repo_id
             try:
-                pack = retrieve_context(
+                pack, debug = retrieve_context_debug(
                     case.query,
                     runtime_settings,
                     top_k=max(DEFAULT_KS),
@@ -104,15 +104,19 @@ def run_eval(
                     repo_id=case_repo_id,
                     trace=True,
                 )
-                trace = get_trace(pack.trace_id, runtime_settings) if pack.trace_id else None
                 retrieved_files = dedupe_files([item.file_path for item in pack.required + pack.supporting])
                 case_result = build_case_result(
                     case,
                     retrieved_files=retrieved_files,
                     token_count=pack.token_estimate,
-                    latency_ms=trace["latency_ms"] if trace else None,
+                    latency_ms=int(debug["latency_ms"]) if debug.get("latency_ms") is not None else None,
                     trace_id=pack.trace_id,
                     retrieval_strategy=pack.retrieval_strategy,
+                    requested_routes=list(debug.get("requested_routes", [])),
+                    executed_routes=list(debug.get("executed_routes", [])),
+                    participating_routes=list(debug.get("participating_routes", [])),
+                    effective_flags=dict(debug.get("effective_flags", {})),
+                    route_diagnostics=dict(debug.get("route_diagnostics", {})),
                 )
             except Exception as exc:
                 case_result = build_case_result(
@@ -122,6 +126,11 @@ def run_eval(
                     latency_ms=None,
                     trace_id=None,
                     retrieval_strategy=[],
+                    requested_routes=[],
+                    executed_routes=[],
+                    participating_routes=[],
+                    effective_flags={},
+                    route_diagnostics={},
                     error=str(exc),
                 )
             case_results.append(case_result)
@@ -289,6 +298,11 @@ def render_markdown_report(result: EvalRunResult) -> str:
                     f"- token count: `{case.token_count}`",
                     f"- latency_ms: `{case.latency_ms}`",
                     f"- trace_id: `{case.trace_id}`",
+                    f"- requested_routes: {', '.join(case.requested_routes) if case.requested_routes else '(none)'}",
+                    f"- executed_routes: {', '.join(case.executed_routes) if case.executed_routes else '(none)'}",
+                    f"- participating_routes: {', '.join(case.participating_routes) if case.participating_routes else '(none)'}",
+                    f"- effective_flags: `{json.dumps(case.effective_flags, ensure_ascii=False, sort_keys=True)}`",
+                    f"- route_diagnostics: `{json.dumps(case.route_diagnostics, ensure_ascii=False, sort_keys=True)}`",
                     f"- errors: {case.error or '(none)'}",
                     "",
                 ]

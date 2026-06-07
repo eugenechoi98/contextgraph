@@ -24,6 +24,11 @@ def build_case_result(
     latency_ms: int | None,
     trace_id: str | None,
     retrieval_strategy: list[str],
+    requested_routes: list[str] | None = None,
+    executed_routes: list[str] | None = None,
+    participating_routes: list[str] | None = None,
+    effective_flags: dict[str, bool] | None = None,
+    route_diagnostics: dict[str, dict[str, object]] | None = None,
     error: str | None = None,
     ks: tuple[int, ...] = DEFAULT_KS,
 ) -> CaseEvalResult:
@@ -75,6 +80,11 @@ def build_case_result(
         latency_ms=latency_ms,
         trace_id=trace_id,
         retrieval_strategy=retrieval_strategy,
+        requested_routes=list(requested_routes or []),
+        executed_routes=list(executed_routes or []),
+        participating_routes=list(participating_routes or []),
+        effective_flags=dict(effective_flags or {}),
+        route_diagnostics=dict(route_diagnostics or {}),
         error=error,
     )
 

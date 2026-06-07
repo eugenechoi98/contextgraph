@@ -155,6 +155,13 @@ def test_run_eval_skips_draft_cases_and_records_failures(tmp_path: Path) -> None
     assert bm25_only.config.graph_enabled is False
     assert bm25_graph.config.graph_enabled is True
     assert bm25_only.case_results[0].retrieval_strategy == ["bm25"]
+    assert bm25_only.case_results[0].requested_routes == ["bm25"]
+    assert bm25_only.case_results[0].executed_routes == ["bm25"]
+    assert bm25_only.case_results[0].participating_routes == ["bm25"]
+    assert bm25_only.case_results[0].route_diagnostics["vector"]["reason"] == "disabled_by_ablation"
+    assert bm25_only.case_results[0].route_diagnostics["graph"]["reason"] == "disabled_by_ablation"
+    assert bm25_graph.case_results[0].requested_routes == ["bm25", "graph"]
+    assert "graph" in bm25_graph.case_results[0].executed_routes
     assert bm25_only.case_results[1].status == "failed"
     assert "No successful scan found" in (bm25_only.case_results[1].error or "")
 

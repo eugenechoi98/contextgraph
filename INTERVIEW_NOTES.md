@@ -17,3 +17,13 @@
 可以这样说：
 
 > 如果 fixture、report 或临时调试文件能被索引，那检索系统其实是在偷看答案。这个问题不能靠团队记忆避免，必须在 intake 层直接封死。这样评测结果才值得信。
+
+## 2026-06-08 - 为什么 ablation 不能只看 retrieval_strategy
+可以这样说：
+
+> `retrieval_strategy` 只能说明最后哪些路由真的带着结果进入了 ContextPack，但它不能解释某条路由为什么没参与。工程上我们需要至少区分三层：配置请求了什么、代码实际执行了什么、最后哪些路由真的参与了融合。这样看到 `bm25_graph` 最终只剩 `bm25` 时，才能分清是 graph 被关了、没 seed、空 traversal，还是别的降级原因。
+
+## 2026-06-08 - 为什么这轮不急着做 Code Seed Reserve
+可以这样说：
+
+> `chunking_001` 这次不是代码候选刚好卡在 seed limit 外面，而是目标文件 `chunker.py` 连 BM25 top 30 都没进，第一次出现已经到 rank 172。这个时候去做 code-seed reserve，本质上是在硬拉很靠后的代码 chunk，容易制造假提升。更稳的做法是先承认它是候选召回问题，再决定要不要做 query expansion 或 chunk text shaping。
