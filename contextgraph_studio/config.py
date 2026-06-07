@@ -27,6 +27,24 @@ class Settings(BaseSettings):
     chunk_lines: int = 80
     chunk_overlap: int = 10
     default_top_k: int = 8
+    bm25_general_candidate_limit: int = Field(
+        default=30,
+        ge=1,
+        validation_alias=AliasChoices("BM25_GENERAL_CANDIDATE_LIMIT", "CONTEXTGRAPH_BM25_GENERAL_CANDIDATE_LIMIT"),
+    )
+    bm25_source_code_lane_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("BM25_SOURCE_CODE_LANE_ENABLED", "CONTEXTGRAPH_BM25_SOURCE_CODE_LANE_ENABLED"),
+    )
+    bm25_source_code_candidate_limit: int = Field(
+        default=10,
+        ge=1,
+        validation_alias=AliasChoices("BM25_SOURCE_CODE_CANDIDATE_LIMIT", "CONTEXTGRAPH_BM25_SOURCE_CODE_CANDIDATE_LIMIT"),
+    )
+    bm25_lexical_expansion_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("BM25_LEXICAL_EXPANSION_ENABLED", "CONTEXTGRAPH_BM25_LEXICAL_EXPANSION_ENABLED"),
+    )
     vector_index_enabled: bool = Field(
         default=False,
         validation_alias=AliasChoices("VECTOR_INDEX_ENABLED", "CONTEXTGRAPH_VECTOR_INDEX_ENABLED"),

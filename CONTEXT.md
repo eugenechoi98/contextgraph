@@ -22,6 +22,8 @@
 - `vector_quality_valid=false` 仍是预期行为，因为当前 embedding provider 仍是 deterministic。
 - Phase 4B.0 已补齐 eval ablation 诊断字段：`requested_routes / executed_routes / participating_routes / effective_flags / route_diagnostics`。
 - 全量测试现为 `61 passed, 1 warning`，新增覆盖 `tests/test_eval_ablation_wiring.py`。
+- Phase 4B.1 已接入最小 `source_code candidate lane`，并新增 `tests/test_bm25_candidate_lanes.py`。
+- 当前全量测试结果：`67 passed, 1 warning`。
 
 ## 基线一致性说明
 
@@ -35,4 +37,5 @@
 - `chunks` 仍是 source of truth；`chunks_fts`、`embeddings`、`relations`、`eval_runs` 都是派生或附属层。
 - intake 当前默认排除 `.tmp*`、`tmp_pytest*`、`eval/fixtures`、`eval/reports`，避免评测泄题。
 - `chunking_001` 在当前 eval 报告中仍有 miss；最新 code-seed 诊断表明 `chunker.py` 不在 BM25 top 30，首次出现于 rank 172，因此本轮不实施 Code Seed Reserve。
+- `chunking_001` 已通过 `source_code candidate lane` 从 critical miss 变为 critical hit；但 graph 对该 case 仍是 `seed_count=6, hit_count=0, reason=empty_traversal`。
 - `cgstudio mcp` 的真实协议可用性已由 `tests/test_mcp_stdio_integration.py` 通过验证；无 client 直接以关闭 stdin 启动时进程返回码为 1，不作为协议不可用结论。

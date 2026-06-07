@@ -24,6 +24,10 @@ class RetrievalPlan:
     priority_categories: list[str]
     priority_entity_types: list[str]
     search_mode: str
+    bm25_general_candidate_limit: int
+    source_code_lane_enabled: bool
+    source_code_candidate_limit: int
+    lexical_expansion_enabled: bool
 
 
 @lru_cache(maxsize=1)
@@ -44,7 +48,7 @@ def build_plan(
 
     strategies = load_task_strategies(str(settings.task_strategies_path)).get("task_types", {})
     if task_hint and task_hint in strategies:
-        return _build_retrieval_plan(task_hint, query, strategies[task_hint], max_tokens, "hint_driven")
+        return _build_retrieval_plan(task_hint, query, strategies[task_hint], settings, max_tokens, "hint_driven")
 
     lowered = query.lower()
     best_type = "general"
@@ -63,6 +67,7 @@ def build_plan(
         best_type,
         query,
         strategies.get(best_type, {}),
+        settings,
         max_tokens,
         "keyword_match" if best_score > 0 else "fallback_general",
     )
@@ -72,9 +77,14 @@ def _build_retrieval_plan(
     task_type: str,
     query: str,
     config: dict,
+    settings: Settings,
     max_tokens: int | None,
     search_mode: str,
 ) -> RetrievalPlan:
+    priority_categories = list(config.get("priority_categories", []))
+    source_code_lane_enabled = bool(
+        config.get("source_code_lane_enabled", _default_source_code_lane(task_type, priority_categories, query))
+    )
     token_budget = max_tokens or int(config.get("default_token_budget", 4000))
     return RetrievalPlan(
         task_type=task_type,
@@ -88,9 +98,13 @@ def _build_retrieval_plan(
             "vector": float(config.get("vector_weight", 0.35)),
             "graph": float(config.get("graph_weight", 0.25)),
         },
-        priority_categories=list(config.get("priority_categories", [])),
+        priority_categories=priority_categories,
         priority_entity_types=list(config.get("priority_entity_types", [])),
         search_mode=search_mode,
+        bm25_general_candidate_limit=settings.bm25_general_candidate_limit,
+        source_code_lane_enabled=source_code_lane_enabled,
+        source_code_candidate_limit=settings.bm25_source_code_candidate_limit,
+        lexical_expansion_enabled=settings.bm25_lexical_expansion_enabled,
     )
 
 
@@ -99,3 +113,18 @@ def _build_bm25_queries(query: str) -> list[str]:
     if not normalized:
         return []
     return [normalized]
+
+
+def _default_source_code_lane(task_type: str, priority_categories: list[str], query: str) -> bool:
+    lowered = query.lower()
+    if any(keyword in lowered for keyword in ("documentation", "docs", "deploy config", "readme", "guide")):
+        return False
+    coding_task_types = {
+        "bug_fix",
+        "refactor",
+        "security_auth",
+        "api_endpoint",
+        "testing",
+        "general",
+    }
+    return task_type in coding_task_types or "source_code" in priority_categories

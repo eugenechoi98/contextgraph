@@ -53,3 +53,16 @@
 ## 2026-06-08: chunking_001 本轮不做 Code Seed Reserve
 
 `chunking_001` 的关键问题不是代码 seed 已进前排却被 seed limit 挤掉，而是 `contextgraph_studio/services/chunker.py` 连 BM25 top 30 都没进，首次出现于 rank 172。当前应先把它视为候选召回问题，而不是 graph seed 配额问题。
+
+## 2026-06-08: 用 Source-Code Candidate Lane 先补候选召回，不改 RRF / Graph / Token Budget
+
+Phase 4B.1 的最小实验选择是：
+
+- 保留原始 BM25 general lane
+- 增加一个 `category=source_code` 的 BM25 lane
+- 只在 source-code lane 上启用轻量 lexical expansion
+- stable merge + dedupe 候选
+- 不改公共 `ContextPack` schema
+- 不改 RRF 公式、graph seed limit、token budget、required/supporting 语义
+
+这个决策的原因是：`chunking_001` 的 primary 问题已经被证据化为 candidate recall，而不是融合层或 graph 层。

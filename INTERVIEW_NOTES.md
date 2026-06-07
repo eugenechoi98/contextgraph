@@ -27,3 +27,8 @@
 可以这样说：
 
 > `chunking_001` 这次不是代码候选刚好卡在 seed limit 外面，而是目标文件 `chunker.py` 连 BM25 top 30 都没进，第一次出现已经到 rank 172。这个时候去做 code-seed reserve，本质上是在硬拉很靠后的代码 chunk，容易制造假提升。更稳的做法是先承认它是候选召回问题，再决定要不要做 query expansion 或 chunk text shaping。
+
+## 2026-06-08 - 为什么先加 source-code candidate lane，而不是先改 RRF
+可以这样说：
+
+> 这轮证据已经说明问题先发生在候选召回层，而不是融合层。RRF 的职责是整合已经召回到的候选，不负责把完全没进场的代码文件凭空变出来。所以更小、更稳的做法，是保留原始 BM25 lane，再补一个受控的 source-code lane，把相关代码先送进候选池，后面的 graph、RRF 和 token budget 都先不动。

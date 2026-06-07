@@ -25,6 +25,20 @@ from contextgraph_studio.services.scan_resolver import resolve_repo_and_scan_run
 
 
 TERM_RE = re.compile(r"[A-Za-z0-9_./-]+")
+CAMEL_RE_1 = re.compile(r"(.)([A-Z][a-z]+)")
+CAMEL_RE_2 = re.compile(r"([a-z0-9])([A-Z])")
+LEXICAL_NORMALIZATIONS = {
+    "chunking": "chunk",
+    "parsing": "parse",
+    "indexing": "index",
+    "retrieval": "retrieve",
+}
+CODE_ORIENTED_VARIANTS = {
+    "chunk": "chunker",
+    "parse": "parser",
+    "index": "indexer",
+    "retrieve": "retriever",
+}
 
 
 @dataclass(slots=True)
@@ -65,6 +79,62 @@ def normalize_query(query: str) -> str:
     return " OR ".join(dict.fromkeys(term.strip() for term in terms if term.strip()))
 
 
+def build_lexical_expansion_terms(query: str) -> list[str]:
+    """Build stable, code-oriented lexical expansion terms without file-specific hints."""
+
+    if not query.strip():
+        return []
+
+    expanded: list[str] = []
+    seen: set[str] = set()
+
+    def add(term: str) -> None:
+        candidate = term.strip().lower()
+        if not candidate or candidate in seen:
+            return
+        seen.add(candidate)
+        expanded.append(candidate)
+
+    for raw in TERM_RE.findall(query):
+        normalized = raw.replace("-", " ").replace("_", " ")
+        for piece in normalized.split():
+            camel_split = CAMEL_RE_1.sub(r"\1 \2", piece)
+            camel_split = CAMEL_RE_2.sub(r"\1 \2", camel_split)
+            for token in camel_split.split():
+                add(token)
+
+    for token in list(expanded):
+        if token in LEXICAL_NORMALIZATIONS:
+            add(LEXICAL_NORMALIZATIONS[token])
+    for token in list(expanded):
+        if token in CODE_ORIENTED_VARIANTS:
+            add(CODE_ORIENTED_VARIANTS[token])
+    return expanded
+
+
+def stable_merge_and_dedupe_hits(
+    general_hits: list[ScoredChunk],
+    source_code_hits: list[ScoredChunk],
+    *,
+    limit: int,
+) -> list[ScoredChunk]:
+    """Preserve general-lane order, then append unseen source-code candidates."""
+
+    if limit <= 0:
+        raise ValueError("Merged BM25 candidate limit must be greater than 0.")
+
+    merged: list[ScoredChunk] = []
+    seen: set[str] = set()
+    for hit in [*general_hits, *source_code_hits]:
+        if hit.chunk_id in seen:
+            continue
+        seen.add(hit.chunk_id)
+        merged.append(hit)
+        if len(merged) >= limit:
+            break
+    return merged
+
+
 def fallback_terms(query: str) -> list[str]:
     """Build degraded lexical search terms."""
 
@@ -102,6 +172,8 @@ def search_bm25(
     repo_id: str,
     scan_run_id: str,
     top_k: int,
+    *,
+    category: str | None = None,
 ) -> list[SearchHit]:
     """Query the latest successful scan with BM25, then lexical fallback if needed."""
 
@@ -129,10 +201,11 @@ def search_bm25(
             WHERE chunks_fts MATCH ?
               AND c.repo_id = ?
               AND c.scan_run_id = ?
+              AND (? IS NULL OR f.category = ?)
             ORDER BY bm25(chunks_fts, 8.0, 4.0, 1.0)
             LIMIT ?
             """,
-            (normalized, repo_id, scan_run_id, top_k),
+            (normalized, repo_id, scan_run_id, category, category, top_k),
         ).fetchall()
     except sqlite3.OperationalError:
         rows = []
@@ -172,10 +245,11 @@ def search_bm25(
         LEFT JOIN entities e ON e.id = c.entity_id
         WHERE c.repo_id = ?
           AND c.scan_run_id = ?
+          AND (? IS NULL OR f.category = ?)
           AND ({' OR '.join(where_clauses)})
         LIMIT ?
         """,
-        params,
+        [repo_id, scan_run_id, category, category, *params[2:]],
     ).fetchall()
     return _rows_to_hits(rows, "Fallback lexical match from latest successful scan")
 
@@ -219,6 +293,11 @@ def retrieve_context_debug(
     plan = build_plan(query, settings, task_hint=task_hint, max_tokens=max_tokens)
     trace_id = str(uuid4())
     recall_top_k = top_k or settings.default_top_k
+    bm25_candidate_limit = max(
+        recall_top_k,
+        settings.bm25_general_candidate_limit
+        + (settings.bm25_source_code_candidate_limit if settings.bm25_source_code_lane_enabled else 0),
+    )
     route_warnings: list[str] = []
     requested_routes = ["bm25"]
     if settings.hybrid_vector_enabled:
@@ -246,7 +325,14 @@ def retrieve_context_debug(
 
     with connect(settings.database_path) as connection:
         resolved_repo_id, scan_run_id = resolve_repo_and_scan_run(connection, repo_id)
-        bm25_hits = run_bm25_recall(connection, plan, resolved_repo_id, scan_run_id, recall_top_k)
+        bm25_hits, bm25_lane_diagnostics = run_bm25_recall(
+            connection,
+            plan,
+            settings,
+            resolved_repo_id,
+            scan_run_id,
+            bm25_candidate_limit,
+        )
         executed_routes.append("bm25")
         route_diagnostics["bm25"] = RouteDiagnostic(
             requested=True,
@@ -353,7 +439,10 @@ def retrieve_context_debug(
             "effective_flags": effective_flags,
             "executed_routes": executed_routes,
             "participating_routes": retrieval_strategy,
-            "route_diagnostics": {name: asdict(item) for name, item in route_diagnostics.items()},
+            "route_diagnostics": {
+                **{name: asdict(item) for name, item in route_diagnostics.items()},
+                "bm25_lanes": bm25_lane_diagnostics,
+            },
             "latency_ms": latency_ms,
         }
 
@@ -382,15 +471,22 @@ def retrieve_context_debug(
 def run_bm25_recall(
     connection: sqlite3.Connection,
     plan: RetrievalPlan,
+    settings: Settings,
     repo_id: str,
     scan_run_id: str,
     top_k: int,
-) -> list[ScoredChunk]:
+) -> tuple[list[ScoredChunk], dict[str, object]]:
     """Run BM25 recall for one or more lexical queries."""
 
-    merged: dict[str, ScoredChunk] = {}
+    merged_general: dict[str, ScoredChunk] = {}
     for query in plan.bm25_queries:
-        for hit in search_bm25(connection, query, repo_id, scan_run_id, top_k):
+        for hit in search_bm25(
+            connection,
+            query,
+            repo_id,
+            scan_run_id,
+            min(top_k, plan.bm25_general_candidate_limit),
+        ):
             candidate = ScoredChunk(
                 chunk_id=hit.chunk_id,
                 file_path=hit.file_path,
@@ -408,10 +504,68 @@ def run_bm25_recall(
                 reason=hit.reason,
                 content=hit.content,
             )
-            existing = merged.get(candidate.chunk_id)
+            existing = merged_general.get(candidate.chunk_id)
             if existing is None or candidate.score > existing.score:
-                merged[candidate.chunk_id] = candidate
-    return sorted(merged.values(), key=lambda item: (-item.score, item.file_path, item.chunk_id))[:top_k]
+                merged_general[candidate.chunk_id] = candidate
+    general_hits = sorted(merged_general.values(), key=lambda item: (-item.score, item.file_path, item.chunk_id))[
+        : plan.bm25_general_candidate_limit
+    ]
+
+    source_code_hits: list[ScoredChunk] = []
+    lane_diagnostics = {
+        "general_limit": plan.bm25_general_candidate_limit,
+        "source_code_lane_enabled": bool(settings.bm25_source_code_lane_enabled and plan.source_code_lane_enabled),
+        "source_code_limit": plan.source_code_candidate_limit,
+        "lexical_expansion_enabled": bool(plan.lexical_expansion_enabled),
+        "general_hit_count": len(general_hits),
+        "source_code_hit_count": 0,
+    }
+    if settings.bm25_source_code_lane_enabled and plan.source_code_lane_enabled:
+        source_terms = build_lexical_expansion_terms(plan.vector_query) if plan.lexical_expansion_enabled else []
+        lane_query = " ".join(source_terms) if source_terms else (plan.vector_query or " ".join(plan.bm25_queries))
+        merged_source: dict[str, ScoredChunk] = {}
+        for hit in search_bm25(
+            connection,
+            lane_query,
+            repo_id,
+            scan_run_id,
+            plan.source_code_candidate_limit,
+            category="source_code",
+        ):
+            candidate = ScoredChunk(
+                chunk_id=hit.chunk_id,
+                file_path=hit.file_path,
+                entity_id=hit.entity_id,
+                entity=hit.entity,
+                entity_type=hit.entity_type,
+                category=hit.category,
+                chunk_kind=hit.chunk_kind,
+                line_start=hit.line_start,
+                line_end=hit.line_end,
+                score=hit.score,
+                source="bm25_source_code",
+                tokens_estimate=hit.tokens_estimate,
+                graph_distance=0,
+                reason=hit.reason,
+                content=hit.content,
+            )
+            existing = merged_source.get(candidate.chunk_id)
+            if existing is None or candidate.score > existing.score:
+                merged_source[candidate.chunk_id] = candidate
+        source_code_hits = sorted(
+            merged_source.values(),
+            key=lambda item: (-item.score, item.file_path, item.chunk_id),
+        )[: plan.source_code_candidate_limit]
+        lane_diagnostics.update(
+            {
+                "source_code_query": lane_query,
+                "source_code_hit_count": len(source_code_hits),
+            }
+        )
+
+    merged_hits = stable_merge_and_dedupe_hits(general_hits, source_code_hits, limit=top_k)
+    lane_diagnostics["merged_hit_count"] = len(merged_hits)
+    return merged_hits, lane_diagnostics
 
 
 def run_vector_recall(

@@ -35,6 +35,7 @@
 - hybrid retrieval with BM25 + graph and optional vector
 - eval runner with golden dataset and ablation configs
 - eval route diagnostics that separate requested, executed, and participating routes
+- a planner-driven source-code BM25 candidate lane that supplements, but does not replace, general BM25
 
 ## 关键边界
 
@@ -42,3 +43,4 @@
 - RRF 融合必须保留 richer metadata，避免 graph path 丢失
 - deterministic embedding 只验证 pipeline，不提供语义质量结论
 - `chunking_001` 当前 miss 先发生在候选召回层，不是已证实的 graph seed 配额问题
+- Phase 4B.1 先解决 candidate recall，再观察 graph 是否因此获得更好的扩展机会
