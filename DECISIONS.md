@@ -115,6 +115,14 @@ Astropy profiling showed the slow path was not runner-level duplicate indexing. 
 The real bottleneck was indexer-level snapshot reuse: each unchanged file scanned the previous scan's full `relations` table. The fix is limited to unchanged snapshots, where all file/entity/chunk rows are copied into a new scan_run and safe old-to-new entity mappings allow relations to be copied in one bulk pass.
 
 If any file is new, changed, or deleted, relation rebuild stays conservative and full-snapshot based. This preserves graph semantics and avoids mixing a performance fix with retrieval or parser behavior changes.
+
+## 2026-06-08: Phase 4E-D.1 exposes Python module-level assignments as chunks
+
+The Django miss was caused by `FILE_UPLOAD_PERMISSIONS` existing in source but not in any searchable chunk. The fix therefore belongs in parser/chunker coverage, not retrieval ranking.
+
+Python module-level static assignments now become `module_assignment` entities with independent symbol chunks. The chunks include safe value metadata and nearby comments because settings files often store the human meaning in comments above the assignment.
+
+Parser version is written into scan stats so old parser snapshots are not reused after parser behavior changes. This keeps index reuse safe without changing the database schema.
 ## 2026-06-08: Graph expectation is a characterization label, not a scoring gate
 
 Phase 4B.3 expands the first-party golden dataset and adds `graph_expectation` with three values:

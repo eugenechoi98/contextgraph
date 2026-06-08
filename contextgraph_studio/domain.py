@@ -154,6 +154,7 @@ class IndexingStats:
     reused_relations: int = 0
     generated_relations: int = 0
     stage_timings_ms: dict[str, int] = field(default_factory=dict)
+    parser_versions: dict[str, str] = field(default_factory=dict)
     vector_index_enabled: bool = False
     embedding_provider: str | None = None
     embedding_model: str | None = None

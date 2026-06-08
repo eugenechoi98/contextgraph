@@ -70,6 +70,7 @@ python -m venv .venv
 - Phase 4E-C.2 -> FTS query safety fix keeps dotted tokens out of raw MATCH syntax
 - Phase 4E-C.3 -> unchanged index reuse avoids per-file relation full scans and stays under 5 minutes on the official Astropy single instance
 - Phase 4E-D -> three official instances ran in isolated SWE-bench cache with no canonical DB change
+- Phase 4E-D.1 -> Python module-level assignment chunks restored the Django critical hit without retrieval changes
 
 ## TypeScript / JavaScript parser scope
 

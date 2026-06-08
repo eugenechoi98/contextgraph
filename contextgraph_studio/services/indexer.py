@@ -21,11 +21,15 @@ from contextgraph_studio.domain import (
 from contextgraph_studio.graph.builder import build_relations_for_scan
 from contextgraph_studio.indexing.vector_store import sync_embeddings_for_scan
 from contextgraph_studio.parsers.config_parser import ConfigParser
+from contextgraph_studio.parsers.python_parser import PARSER_VERSION as PYTHON_PARSER_VERSION
 from contextgraph_studio.parsers.python_parser import PythonParser
 from contextgraph_studio.parsers.sql_parser import SqlParser
 from contextgraph_studio.parsers.typescript_parser import TypeScriptParser
 from contextgraph_studio.services.chunker import chunk_source_file
 from contextgraph_studio.services.intake import scan_repository
+
+
+CURRENT_PARSER_VERSIONS = {"python": PYTHON_PARSER_VERSION}
 
 
 def _stable_id(*parts: object) -> str:
@@ -134,6 +138,7 @@ def update_scan_run(
                     "reused_relation_count": stats.reused_relations,
                     "generated_relation_count": stats.generated_relations,
                     "stage_timings_ms": stats.stage_timings_ms,
+                    "parser_versions": stats.parser_versions,
                     "vector_index_enabled": stats.vector_index_enabled,
                     "embedding_provider": stats.embedding_provider,
                     "embedding_model": stats.embedding_model,
@@ -162,7 +167,7 @@ def get_latest_successful_scan(
 
     return connection.execute(
         """
-        SELECT id, repo_id, finished_at
+        SELECT id, repo_id, finished_at, stats_json
         FROM scan_runs
         WHERE repo_id = ? AND status = 'done'
         ORDER BY finished_at DESC, started_at DESC
@@ -184,6 +189,24 @@ def get_previous_files(connection: sqlite3.Connection, scan_run_id: str) -> dict
         (scan_run_id,),
     ).fetchall()
     return {row["file_path"]: row for row in rows}
+
+
+def scan_parser_versions_are_current(scan_row: sqlite3.Row | None) -> bool:
+    """确认上一轮 scan 的 parser 版本可以安全复用。"""
+
+    if scan_row is None:
+        return False
+    stats_json = scan_row["stats_json"] if "stats_json" in scan_row.keys() else None
+    if not stats_json:
+        return False
+    try:
+        stats = json.loads(stats_json)
+    except json.JSONDecodeError:
+        return False
+    versions = stats.get("parser_versions")
+    if not isinstance(versions, dict):
+        return False
+    return all(versions.get(language) == version for language, version in CURRENT_PARSER_VERSIONS.items())
 
 
 def parse_error_file_path(message: str) -> str:
@@ -677,15 +700,17 @@ def index_repository(repo_root: Path, settings: Settings) -> dict[str, int | str
             with _timed_stage(stats, "scan files"):
                 source_files = scan_repository(repo_root, repo_id, settings)
             stats.vector_index_enabled = settings.vector_index_enabled
+            stats.parser_versions = dict(CURRENT_PARSER_VERSIONS)
+            reuse_previous_scan = scan_parser_versions_are_current(previous_scan)
             with _timed_stage(stats, "resolve previous successful scan"):
-                previous_files = get_previous_files(connection, previous_scan["id"]) if previous_scan else {}
+                previous_files = get_previous_files(connection, previous_scan["id"]) if reuse_previous_scan else {}
             with _timed_stage(stats, "compare unchanged files"):
-                reusable_parse_errors = get_reusable_parse_errors(connection, repo_id) if previous_scan else {}
+                reusable_parse_errors = get_reusable_parse_errors(connection, repo_id) if reuse_previous_scan else {}
             current_paths = {source_file.path for source_file in source_files}
             stats.files = len(source_files)
             stats.deleted_files = len(set(previous_files) - current_paths)
             old_to_new_entity_ids: dict[str, str] = {}
-            previous_scan_run_id = str(previous_scan["id"]) if previous_scan else None
+            previous_scan_run_id = str(previous_scan["id"]) if reuse_previous_scan and previous_scan else None
 
             for source_file in sorted(source_files, key=lambda item: item.path):
                 previous = previous_files.get(source_file.path)
@@ -791,6 +816,7 @@ def index_repository(repo_root: Path, settings: Settings) -> dict[str, int | str
         "reused_relation_count": stats.reused_relations,
         "generated_relation_count": stats.generated_relations,
         "stage_timings_ms": stats.stage_timings_ms,
+        "parser_versions": stats.parser_versions,
         "vector_index_enabled": stats.vector_index_enabled,
         "embedding_provider": stats.embedding_provider,
         "embedding_model": stats.embedding_model,

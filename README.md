@@ -155,6 +155,12 @@ Latest three-instance official sample:
 - result: Astropy rank 1, Matplotlib rank 2, Django miss
 - analysis: `eval/analysis/swebench_three_instance_localization_report.md`
 
+After Python module-level assignment chunks:
+
+- Django `django/conf/global_settings.py` recovered to rank 7
+- all three instances now have critical hits under both `bm25_only` and `bm25_graph`
+- follow-up analysis: `eval/analysis/swebench_three_instance_localization_after_assignment_chunks.md`
+
 ## Recommended local vector model
 
 Current recommended local code-specialized semantic baseline:

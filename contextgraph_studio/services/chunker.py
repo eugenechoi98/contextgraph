@@ -96,7 +96,17 @@ def build_file_summary(
     symbols = [
         entity.symbol_name
         for entity in entities
-        if entity.entity_type in {"class", "function", "method", "api_route", "db_table", "db_view", "db_index", "config_key"} and entity.symbol_name
+        if entity.entity_type in {
+            "class",
+            "function",
+            "method",
+            "api_route",
+            "db_table",
+            "db_view",
+            "db_index",
+            "config_key",
+            "module_assignment",
+        } and entity.symbol_name
     ]
     export_lines = "\n".join(f"- {item}" for item in exports[:24]) if exports else "- (no extracted exports)"
     import_lines = "\n".join(f"- {item}" for item in imports[:24]) if imports else "- (no extracted imports)"
@@ -253,6 +263,19 @@ def chunk_structured_source(source: SourceFile, parse_result: ParseResult) -> li
                     line_start=entity.line_start,
                     line_end=entity.line_end,
                     content_hash=_hash_text(route_content),
+                )
+            )
+        elif entity.entity_type == "module_assignment":
+            assignment_content = entity.signature or f"entity_type: module_assignment\nsymbol_name: {entity.symbol_name}"
+            chunks.append(
+                ChunkRecord(
+                    entity_symbol_name=entity.symbol_name,
+                    chunk_kind="symbol",
+                    content=assignment_content,
+                    tokens_estimate=estimate_tokens(assignment_content),
+                    line_start=entity.line_start,
+                    line_end=entity.line_end,
+                    content_hash=_hash_text(assignment_content),
                 )
             )
     return chunks

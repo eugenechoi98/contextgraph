@@ -55,3 +55,4 @@
 - 2026-06-08: Added centralized FTS query safety normalization and ranked fallback, then restored Astropy single-instance critical hit at rank 1
 - 2026-06-08: Profiled Astropy unchanged index reuse and replaced per-file relation table scans with bulk relation copy for unchanged snapshots
 - 2026-06-08: Ran a three-instance official SWE-bench Lite localization sample and classified the Django miss as parser/chunker coverage for module-level settings assignments
+- 2026-06-08: Added Python module-level assignment chunks, recovered Django SWE-bench localization to rank 7, and kept Astropy/Matplotlib regression hits

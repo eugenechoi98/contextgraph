@@ -188,6 +188,9 @@ def _parent_entity_for_contains(
     if row["entity_type"] == "method" and "." in symbol_name:
         parent_symbol = symbol_name.rsplit(".", 1)[0]
         return symbol_map.get(parent_symbol)
+    if row["entity_type"] == "module_assignment" and "." in symbol_name:
+        parent_symbol = symbol_name.rsplit(".", 1)[0]
+        return symbol_map.get(parent_symbol)
     if row["entity_type"] in {"class", "function"} and "." in symbol_name:
         parent_symbol = symbol_name.rsplit(".", 1)[0]
         return symbol_map.get(parent_symbol)
