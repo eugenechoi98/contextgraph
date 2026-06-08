@@ -54,3 +54,4 @@
 - 2026-06-08: Diagnosed the Astropy miss as dotted-token FTS fallback, changed localization to one index per instance, and clarified reused parse-error statistics
 - 2026-06-08: Added centralized FTS query safety normalization and ranked fallback, then restored Astropy single-instance critical hit at rank 1
 - 2026-06-08: Profiled Astropy unchanged index reuse and replaced per-file relation table scans with bulk relation copy for unchanged snapshots
+- 2026-06-08: Ran a three-instance official SWE-bench Lite localization sample and classified the Django miss as parser/chunker coverage for module-level settings assignments

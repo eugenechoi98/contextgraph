@@ -149,6 +149,12 @@ Latest official single-instance smoke:
 - unchanged index reuse after performance fix: about `180s` in direct profile and under `5 min` in localization smoke
 - boundary: no Docker, no patch apply, no target repo tests, no embedding download, no full benchmark
 
+Latest three-instance official sample:
+
+- instances: `astropy__astropy-12907`, `django__django-10914`, `matplotlib__matplotlib-18869`
+- result: Astropy rank 1, Matplotlib rank 2, Django miss
+- analysis: `eval/analysis/swebench_three_instance_localization_report.md`
+
 ## Recommended local vector model
 
 Current recommended local code-specialized semantic baseline:

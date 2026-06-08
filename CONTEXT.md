@@ -2,7 +2,7 @@
 
 - 当前正式工作区：`D:\contextgraph-studio`
 - 禁止继续开发路径：`C:\Users\Administrator.DESKTOP-5G2BKSD\Documents\contextgraph`
-- 当前阶段：Phase 4E-C.3，Index Reuse Performance Audit + Evidence-gated Minimal Optimization
+- 当前阶段：Phase 4E-D，3 个官方 SWE-bench Lite 实例小样本 Localization Report
 - 当前 canonical DB：`D:\contextgraph-studio\.data\contextgraph.db`
 - 当前 SWE-bench cache：`D:\contextgraph-swebench-cache`
 - 当前虚拟环境：`D:\contextgraph-studio\.venv`
@@ -10,27 +10,28 @@
 
 ## 当前目标
 
-- 只处理官方 Astropy 单实例的 index reuse 性能问题。
+- 用 3 个官方 SWE-bench Lite 实例做隔离 localization 小样本报告。
 - 不修改 retrieval、FTS normalizer、BM25、Graph、RRF、Token Budget、parser 或 embedding。
 
 ## 当前进度
 
-- Phase 4E-C.2 已提交 checkpoint：`1fcb485 fix(retrieval): normalize FTS queries and rank fallback results`。
-- 已确认 `bm25_only reused_index=false` 是 runner config 级字段，不代表同一实例重复 index。
-- baseline profile：unchanged snapshot index `1046594 ms`，最慢阶段是 per-file relation copy。
-- 已实施最小优化：unchanged snapshot 下 relations 改为一次读取上一成功 scan 并批量复制。
-- 优化后 profile：unchanged snapshot index `180323 ms`，降幅约 `82.8%`。
-- 官方 Astropy localization smoke 仍通过：`separable.py` rank 1，Recall@1=1，MRR=1，Graph hits=4。
-- 正式分析文档：`eval/analysis/index_reuse_performance_profile.md`。
+- Phase 4E-C.3 已提交 checkpoint：`03bfd4f perf(index): bulk copy reused snapshot relations`。
+- 3 实例 manifest 已生成在仓库外：`D:\contextgraph-swebench-cache\manifests\official_three_instances.json`。
+- localization 原始报告在仓库外：`D:\contextgraph-swebench-cache\reports\swebench_localization_1780928519.json`。
+- localization 汇总报告在仓库外：`D:\contextgraph-swebench-cache\reports\swebench_three_instance_summary_1780928519.json`。
+- 仓库内人工分析文档：`eval/analysis/swebench_three_instance_localization_report.md`。
+- 样本结果：Astropy rank 1，Matplotlib rank 2，Django miss。
+- Django miss 分类：`D. parser coverage 不足`，目标文件有 chunk/entity，但模块级 settings assignment 没有被 chunk 成强可检索内容。
+- canonical DB SHA256 前后一致：`75F9FE908AD4D7491F9A82EA31CFBB8B9B2A2D94C8E6ECCDBF2762E976D9B174`。
 
 ## 下一步
 
-- 下一轮建议单独审计剩余的 relation bulk insert、file/entity/chunk copy 和 FTS sync 性能。
+- 下一轮建议只做 Python module-level assignment parser/chunker 诊断，不直接改检索算法。
 
 ## 注意事项
 
 - 仍只在 D 盘正式仓库工作。
 - 不要修改 BM25、RRF、Token Budget、Graph traversal、parser、embedding、ContextPack schema。
-- 本轮未运行 Docker、patch、目标仓库 tests，也未创建 Phase 4E-C.3 commit。
-- 不要自动清理 `D:\contextgraph-swebench-cache`，除非 eugene 明确要求。
+- 本轮未运行 Docker、patch、目标仓库 tests，也未创建 Phase 4E-D commit。
+- 不要提交仓库外 manifest、localization report、隔离 DB、checkout 或 cache。
 - `HANDOFF_2026-06-08_Phase4B.md` 是未跟踪旧交接文档，本轮不处理。
