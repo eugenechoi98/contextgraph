@@ -52,3 +52,4 @@
 - 2026-06-08: Added Phase 4E-B isolated SWE-bench checkout manager, localization smoke runner, CLI entry, and local Git fixture coverage
 - 2026-06-08: Ran Phase 4E-C official `astropy__astropy-12907` single-instance smoke, fixed duplicate relation insert handling, and confirmed canonical DB isolation
 - 2026-06-08: Diagnosed the Astropy miss as dotted-token FTS fallback, changed localization to one index per instance, and clarified reused parse-error statistics
+- 2026-06-08: Added centralized FTS query safety normalization and ranked fallback, then restored Astropy single-instance critical hit at rank 1

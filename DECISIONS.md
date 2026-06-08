@@ -99,6 +99,14 @@ The official Astropy checkout also exposed duplicate stable `relations.id` inser
 Parse errors now distinguish current parsing, reused-file errors, and total snapshot errors. Reused errors are restored only when path and content hash match, so snapshot reports stay honest without reparsing unchanged files.
 
 The Astropy miss is recorded but not fixed in this phase because its direct cause is FTS query construction and fallback ordering, which is retrieval behavior outside the authorized infrastructure-only scope.
+
+## 2026-06-08: Phase 4E-C.2 normalizes FTS queries before MATCH
+
+Dotted natural-language tokens should not be passed into SQLite FTS5 as syntax. The retrieval layer now converts user text into safe tokens and builds a quoted OR query.
+
+Fallback remains only for exceptional no-FTS cases, but it now ranks by deterministic lexical overlap across path, symbol, and chunk text. This fixes the official Astropy miss without changing BM25 weights, RRF, Graph, Token Budget, parser behavior, embeddings, or query expansion.
+
+The index reuse performance problem remains deferred because it is a separate indexing efficiency issue, not the retrieval correctness bug being closed here.
 ## 2026-06-08: Graph expectation is a characterization label, not a scoring gate
 
 Phase 4B.3 expands the first-party golden dataset and adds `graph_expectation` with three values:

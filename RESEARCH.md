@@ -99,3 +99,10 @@
   - Graph executes but receives six CircleCI `config_key` seeds and stops with `edge_type_filtered`.
   - The localization runner previously indexed once per retrieval config; it now indexes once per instance.
   - Parse error reporting now preserves reused snapshot errors without reparsing unchanged files.
+- 2026-06-08 Phase 4E-C.2 implementation notes:
+  - FTS query normalization now splits punctuation-heavy natural language into safe quoted tokens.
+  - `astropy.modeling` becomes `astropy` and `modeling`; `m.Linear1D` becomes `m` and `Linear1D`; `separability_matrix` remains intact.
+  - All BM25 lanes use the same normalizer.
+  - Fallback is deterministic and ranks by token overlap across path, symbol, and chunk text.
+  - Official Astropy re-smoke now returns `astropy/modeling/separable.py` at rank 1 with no fallback.
+  - Index reuse performance remains deferred.

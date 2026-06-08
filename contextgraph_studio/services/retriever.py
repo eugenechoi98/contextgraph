@@ -17,6 +17,7 @@ from contextgraph_studio.graph.scorer import compute_graph_score
 from contextgraph_studio.indexing.vector_store import count_embeddings_for_scan
 from contextgraph_studio.models.context_pack import ChunkResult, ContextPack, GraphPath
 from contextgraph_studio.retrieval.fusion import weighted_reciprocal_rank_fusion
+from contextgraph_studio.retrieval.fts_query import NormalizedFtsQuery, normalize_fts_query
 from contextgraph_studio.retrieval.reranker import IdentityReranker
 from contextgraph_studio.retrieval.token_budget import FilteredChunk, PackedSelection, pack_chunks
 from contextgraph_studio.retrieval.vector import search_similar_chunks
@@ -85,13 +86,12 @@ class GraphRecallResult:
     diagnostic: RouteDiagnostic
 
 
-def normalize_query(query: str) -> str:
-    """Collapse the query into an FTS-friendly OR expression."""
+@dataclass(slots=True)
+class Bm25SearchResult:
+    """BM25 search hits plus query diagnostics."""
 
-    terms = TERM_RE.findall(query)
-    if not terms:
-        return query
-    return " OR ".join(dict.fromkeys(term.strip() for term in terms if term.strip()))
+    hits: list[SearchHit]
+    diagnostics: dict[str, object]
 
 
 def build_lexical_expansion_terms(query: str) -> list[str]:
@@ -164,6 +164,12 @@ def fallback_terms(query: str) -> list[str]:
     return [stripped] if stripped else []
 
 
+def normalize_query(query: str) -> str:
+    """Backward-compatible wrapper for tests and ad hoc debugging."""
+
+    return normalize_fts_query(query).normalized_query
+
+
 def _rows_to_hits(rows: list[sqlite3.Row], reason: str) -> list[SearchHit]:
     return [
         SearchHit(
@@ -196,54 +202,126 @@ def search_bm25(
 ) -> list[SearchHit]:
     """Query the latest successful scan with BM25, then lexical fallback if needed."""
 
-    normalized = normalize_query(query)
-    try:
-        rows = connection.execute(
-            """
-            SELECT
-                c.id AS chunk_id,
-                c.entity_id,
-                f.file_path,
-                f.category,
-                e.symbol_name AS entity,
-                e.entity_type,
-                c.chunk_kind,
-                c.line_start,
-                c.line_end,
-                c.tokens_estimate,
-                c.content,
-                -bm25(chunks_fts, 8.0, 4.0, 1.0) AS score
-            FROM chunks_fts
-            JOIN chunks c ON c.id = chunks_fts.chunk_id
-            JOIN files f ON f.id = c.file_id
-            LEFT JOIN entities e ON e.id = c.entity_id
-            WHERE chunks_fts MATCH ?
-              AND c.repo_id = ?
-              AND c.scan_run_id = ?
-              AND (? IS NULL OR f.category = ?)
-            ORDER BY bm25(chunks_fts, 8.0, 4.0, 1.0)
-            LIMIT ?
-            """,
-            (normalized, repo_id, scan_run_id, category, category, top_k),
-        ).fetchall()
-    except sqlite3.OperationalError:
-        rows = []
+    return search_bm25_with_diagnostics(
+        connection,
+        query,
+        repo_id,
+        scan_run_id,
+        top_k,
+        category=category,
+    ).hits
+
+
+def search_bm25_with_diagnostics(
+    connection: sqlite3.Connection,
+    query: str,
+    repo_id: str,
+    scan_run_id: str,
+    top_k: int,
+    *,
+    category: str | None = None,
+) -> Bm25SearchResult:
+    """Query BM25 with centralized FTS safety diagnostics."""
+
+    normalized = normalize_fts_query(query)
+    diagnostics: dict[str, object] = {
+        "fts_strategy": normalized.strategy,
+        "normalized_query": normalized.normalized_query,
+        "tokens": list(normalized.tokens),
+        "dropped_tokens": list(normalized.dropped_tokens),
+        "fallback_used": False,
+        "fallback_reason": None,
+    }
+
+    rows: list[sqlite3.Row] = []
+    if normalized.normalized_query:
+        try:
+            rows = connection.execute(
+                """
+                SELECT
+                    c.id AS chunk_id,
+                    c.entity_id,
+                    f.file_path,
+                    f.category,
+                    e.symbol_name AS entity,
+                    e.entity_type,
+                    c.chunk_kind,
+                    c.line_start,
+                    c.line_end,
+                    c.tokens_estimate,
+                    c.content,
+                    -bm25(chunks_fts, 8.0, 4.0, 1.0) AS score
+                FROM chunks_fts
+                JOIN chunks c ON c.id = chunks_fts.chunk_id
+                JOIN files f ON f.id = c.file_id
+                LEFT JOIN entities e ON e.id = c.entity_id
+                WHERE chunks_fts MATCH ?
+                  AND c.repo_id = ?
+                  AND c.scan_run_id = ?
+                  AND (? IS NULL OR f.category = ?)
+                ORDER BY bm25(chunks_fts, 8.0, 4.0, 1.0), f.file_path, COALESCE(e.symbol_name, ''), c.id
+                LIMIT ?
+                """,
+                (normalized.normalized_query, repo_id, scan_run_id, category, category, top_k),
+            ).fetchall()
+        except sqlite3.OperationalError as exc:
+            diagnostics["fallback_reason"] = f"fts_error: {exc}"
+    else:
+        diagnostics["fallback_reason"] = "empty_query"
 
     if rows:
-        return _rows_to_hits(rows, "BM25 match from latest successful scan")
+        return Bm25SearchResult(
+            hits=_rows_to_hits(rows, "BM25 match from latest successful scan"),
+            diagnostics=diagnostics,
+        )
 
-    terms = fallback_terms(query)
+    if diagnostics["fallback_reason"] is None:
+        diagnostics["fallback_reason"] = "no_fts_hits"
+    diagnostics["fallback_used"] = True
+    fallback_rows = run_ranked_lexical_fallback(
+        connection,
+        normalized,
+        repo_id,
+        scan_run_id,
+        top_k,
+        category=category,
+    )
+    return Bm25SearchResult(
+        hits=_rows_to_hits(fallback_rows, "Ranked lexical fallback from latest successful scan"),
+        diagnostics=diagnostics,
+    )
+
+
+def run_ranked_lexical_fallback(
+    connection: sqlite3.Connection,
+    normalized: NormalizedFtsQuery,
+    repo_id: str,
+    scan_run_id: str,
+    top_k: int,
+    *,
+    category: str | None,
+) -> list[sqlite3.Row]:
+    """Run deterministic token-overlap fallback when FTS cannot be used."""
+
+    terms = normalized.tokens
     if not terms:
         return []
-
     where_clauses: list[str] = []
-    params: list[str | int] = [repo_id, scan_run_id]
+    score_parts: list[str] = []
+    params: list[str | int | float] = []
     for term in terms:
         where_clauses.append(
             "(lower(f.file_path) LIKE lower(?) OR lower(COALESCE(e.symbol_name, '')) LIKE lower(?) OR lower(c.content) LIKE lower(?))"
         )
-        params.extend([f"%{term}%", f"%{term}%", f"%{term}%"])
-    params.append(top_k)
+        score_parts.append(
+            """
+            (CASE WHEN lower(f.file_path) LIKE lower(?) THEN 4.0 ELSE 0.0 END)
+            + (CASE WHEN lower(COALESCE(e.symbol_name, '')) LIKE lower(?) THEN 3.0 ELSE 0.0 END)
+            + (CASE WHEN lower(c.content) LIKE lower(?) THEN 1.0 ELSE 0.0 END)
+            """
+        )
+    where_params = [value for term in terms for value in (f"%{term}%", f"%{term}%", f"%{term}%")]
+    score_params = [value for term in terms for value in (f"%{term}%", f"%{term}%", f"%{term}%")]
     rows = connection.execute(
         f"""
         SELECT
@@ -258,7 +336,7 @@ def search_bm25(
             c.line_end,
             c.tokens_estimate,
             c.content,
-            0.1 AS score
+            ({' + '.join(score_parts)}) AS score
         FROM chunks c
         JOIN files f ON f.id = c.file_id
         LEFT JOIN entities e ON e.id = c.entity_id
@@ -266,11 +344,20 @@ def search_bm25(
           AND c.scan_run_id = ?
           AND (? IS NULL OR f.category = ?)
           AND ({' OR '.join(where_clauses)})
+        ORDER BY score DESC, f.file_path, COALESCE(e.symbol_name, ''), c.id
         LIMIT ?
         """,
-        [repo_id, scan_run_id, category, category, *params[2:]],
+        [
+            *score_params,
+            repo_id,
+            scan_run_id,
+            category,
+            category,
+            *where_params,
+            top_k,
+        ],
     ).fetchall()
-    return _rows_to_hits(rows, "Fallback lexical match from latest successful scan")
+    return rows
 
 
 def retrieve_context(
@@ -489,14 +576,17 @@ def run_bm25_recall(
     """Run BM25 recall for one or more lexical queries."""
 
     merged_general: dict[str, ScoredChunk] = {}
+    general_search_diagnostics: list[dict[str, object]] = []
     for query in plan.bm25_queries:
-        for hit in search_bm25(
+        search_result = search_bm25_with_diagnostics(
             connection,
             query,
             repo_id,
             scan_run_id,
             min(top_k, plan.bm25_general_candidate_limit),
-        ):
+        )
+        general_search_diagnostics.append(search_result.diagnostics)
+        for hit in search_result.hits:
             candidate = ScoredChunk(
                 chunk_id=hit.chunk_id,
                 file_path=hit.file_path,
@@ -524,6 +614,7 @@ def run_bm25_recall(
     source_code_hits: list[ScoredChunk] = []
     schema_hits: list[ScoredChunk] = []
     config_hits: list[ScoredChunk] = []
+    general_diagnostic = summarize_search_diagnostics(general_search_diagnostics)
     lane_diagnostics = {
         "candidate_lanes": list(plan.candidate_lanes),
         "general_limit": plan.bm25_general_candidate_limit,
@@ -538,7 +629,12 @@ def run_bm25_recall(
         "source_code_hit_count": 0,
         "schema_hit_count": 0,
         "config_hit_count": 0,
-        "general": {"executed": True, "hit_count": len(general_hits), "limit": plan.bm25_general_candidate_limit},
+        "general": {
+            "executed": True,
+            "hit_count": len(general_hits),
+            "limit": plan.bm25_general_candidate_limit,
+            **general_diagnostic,
+        },
         "source_code": {"executed": False, "hit_count": 0, "reason": "disabled_for_task"},
         "schema": {"executed": False, "hit_count": 0, "reason": "disabled_for_task"},
         "config": {"executed": False, "hit_count": 0, "reason": "disabled_for_task"},
@@ -546,7 +642,7 @@ def run_bm25_recall(
     if settings.bm25_source_code_lane_enabled and plan.source_code_lane_enabled:
         source_terms = build_lexical_expansion_terms(plan.vector_query) if plan.lexical_expansion_enabled else []
         lane_query = " ".join(source_terms) if source_terms else (plan.vector_query or " ".join(plan.bm25_queries))
-        source_code_hits = run_category_bm25_lane(
+        source_code_hits, source_code_diagnostic = run_category_bm25_lane_with_diagnostics(
             connection,
             lane_query,
             repo_id,
@@ -564,6 +660,7 @@ def run_bm25_recall(
                     "hit_count": len(source_code_hits),
                     "limit": plan.source_code_candidate_limit,
                     "query": lane_query,
+                    **source_code_diagnostic,
                 },
             }
         )
@@ -572,7 +669,7 @@ def run_bm25_recall(
 
     if settings.bm25_schema_lane_enabled and plan.schema_lane_enabled:
         lane_query = plan.vector_query or " ".join(plan.bm25_queries)
-        schema_hits = run_category_bm25_lane(
+        schema_hits, schema_diagnostic = run_category_bm25_lane_with_diagnostics(
             connection,
             lane_query,
             repo_id,
@@ -590,6 +687,7 @@ def run_bm25_recall(
                     "hit_count": len(schema_hits),
                     "limit": plan.schema_candidate_limit,
                     "query": lane_query,
+                    **schema_diagnostic,
                 },
             }
         )
@@ -598,7 +696,7 @@ def run_bm25_recall(
 
     if settings.bm25_config_lane_enabled and plan.config_lane_enabled:
         lane_query = plan.vector_query or " ".join(plan.bm25_queries)
-        config_hits = run_category_bm25_lane(
+        config_hits, config_diagnostic = run_category_bm25_lane_with_diagnostics(
             connection,
             lane_query,
             repo_id,
@@ -616,6 +714,7 @@ def run_bm25_recall(
                     "hit_count": len(config_hits),
                     "limit": plan.config_candidate_limit,
                     "query": lane_query,
+                    **config_diagnostic,
                 },
             }
         )
@@ -644,8 +743,33 @@ def run_category_bm25_lane(
 ) -> list[ScoredChunk]:
     """Run a category-filtered BM25 lane and return deduped candidates."""
 
+    hits, _ = run_category_bm25_lane_with_diagnostics(
+        connection,
+        query,
+        repo_id,
+        scan_run_id,
+        limit,
+        category=category,
+        source=source,
+    )
+    return hits
+
+
+def run_category_bm25_lane_with_diagnostics(
+    connection: sqlite3.Connection,
+    query: str,
+    repo_id: str,
+    scan_run_id: str,
+    limit: int,
+    *,
+    category: str,
+    source: str,
+) -> tuple[list[ScoredChunk], dict[str, object]]:
+    """Run a category-filtered BM25 lane and return candidates plus query diagnostics."""
+
     merged: dict[str, ScoredChunk] = {}
-    for hit in search_bm25(connection, query, repo_id, scan_run_id, limit, category=category):
+    search_result = search_bm25_with_diagnostics(connection, query, repo_id, scan_run_id, limit, category=category)
+    for hit in search_result.hits:
         candidate = ScoredChunk(
             chunk_id=hit.chunk_id,
             file_path=hit.file_path,
@@ -666,7 +790,31 @@ def run_category_bm25_lane(
         existing = merged.get(candidate.chunk_id)
         if existing is None or candidate.score > existing.score:
             merged[candidate.chunk_id] = candidate
-    return sorted(merged.values(), key=lambda item: (-item.score, item.file_path, item.chunk_id))[:limit]
+    return (
+        sorted(merged.values(), key=lambda item: (-item.score, item.file_path, item.chunk_id))[:limit],
+        dict(search_result.diagnostics),
+    )
+
+
+def summarize_search_diagnostics(items: list[dict[str, object]]) -> dict[str, object]:
+    """Summarize one or more BM25 query diagnostics for a lane."""
+
+    if not items:
+        return {
+            "fts_strategy": "empty_query",
+            "normalized_query": "",
+            "fallback_used": False,
+            "fallback_reason": None,
+        }
+    fallback_reasons = [item.get("fallback_reason") for item in items if item.get("fallback_reason")]
+    return {
+        "fts_strategy": items[0].get("fts_strategy"),
+        "normalized_query": items[0].get("normalized_query"),
+        "fallback_used": any(bool(item.get("fallback_used")) for item in items),
+        "fallback_reason": "; ".join(str(reason) for reason in fallback_reasons) if fallback_reasons else None,
+        "tokens": items[0].get("tokens", []),
+        "dropped_tokens": items[0].get("dropped_tokens", []),
+    }
 
 
 def run_vector_recall(
