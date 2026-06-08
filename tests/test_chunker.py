@@ -1,5 +1,5 @@
 from contextgraph_studio.config import Settings
-from contextgraph_studio.domain import EntityRecord, SourceFile
+from contextgraph_studio.domain import EntityRecord, ParseResult, SourceFile
 from contextgraph_studio.services.chunker import chunk_source_file
 
 
@@ -43,7 +43,14 @@ def test_chunk_python_entities() -> None:
         EntityRecord("class", "app.Beta", "Beta", 4, 6, "class Beta", None, "python", "chash", "app"),
         EntityRecord("method", "app.Beta.gamma", "gamma", 5, 6, "def gamma(self)", None, "python", "m2hash", "app.Beta"),
     ]
-    chunks = chunk_source_file(source, Settings(), entities)
+    parse_result = ParseResult(
+        entities=entities,
+        relations=[],
+        parse_errors=[],
+        language="python",
+        parser_version="python-ast-v1",
+    )
+    chunks = chunk_source_file(source, Settings(), parse_result)
     assert any(chunk.chunk_kind == "file_summary" for chunk in chunks)
     assert any(chunk.entity_symbol_name == "app.alpha" for chunk in chunks)
     assert any(chunk.entity_symbol_name == "app.Beta.gamma" for chunk in chunks)

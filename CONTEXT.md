@@ -164,3 +164,46 @@
   - scan_run_id `4586616d-31fa-48f6-a022-f9005b85ef5e`
   - `parse_errors=0`
   - default mode still does not auto-download embedding models
+
+## Phase 4D Note
+
+- The repo now has two additional minimal structured parsers:
+  - `contextgraph_studio/parsers/sql_parser.py`
+  - `contextgraph_studio/parsers/config_parser.py`
+- Current SQL coverage is intentionally small:
+  - `db_table`
+  - `db_view`
+  - `db_index`
+- Current config coverage is intentionally small:
+  - `config_key`
+  - file types: `.json`, `.yaml`, `.yml`, `.toml`
+- SQL chunks now use `schema_unit`.
+- Config files now produce:
+  - `file_summary`
+  - bounded `schema_unit` chunks for key paths
+- Sensitive config values are masked by key-name rules and do not enter chunk text or retrieval output as raw values.
+- Current array strategy is:
+  - keep parent key
+  - add a simple `[]` key path
+  - continue nested object keys such as `servers[].host`
+- Current graph boundary stays minimal:
+  - only `contains`
+  - no `uses_table`
+  - no `configures`
+- Structured fixture smoke succeeded:
+  - repo_id `4d8c11cb-8735-5b60-bb71-924909bcf77e`
+  - scan_run_id `f41ffe02-6448-4ff0-b9ce-cb3ffbbf9ae2`
+  - `files=7`
+  - `chunks=27`
+  - `entities=30`
+  - `relations=23`
+  - `parse_errors=2`
+- Structured retrieval smoke succeeded:
+  - SQL query hit `schema.sql` and `migration.sql` `schema_unit` chunks
+  - config query hit `config.json`, `settings.yaml`, and `pyproject.toml` config keys
+  - raw secret values did not appear in the returned content
+- Latest full validation is now `108 passed, 1 warning`.
+- Latest canonical regression scan is:
+  - repo_id `8bf02440-5d4e-5fa2-8916-a955c2c21fd2`
+  - scan_run_id `b05edac4-3a82-45f8-a53a-0a6b3b18b1fa`
+  - `parse_errors=0`

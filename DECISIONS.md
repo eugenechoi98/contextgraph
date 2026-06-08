@@ -266,3 +266,38 @@ Reason:
 - fixture repos are useful as standalone parser smoke targets
 - fixture syntax-error files should not pollute the canonical repo scan
 - indexing `tests/fixtures/sample_ts_repo` directly still works because the fixture becomes the repo root in that mode
+
+## 2026-06-08: Phase 4D keeps structured parsing intentionally shallow
+
+For SQL and config files, this phase only aims to get stable structured nodes into the existing index.
+
+That means:
+
+- SQL stops at `db_table`, `db_view`, and `db_index`
+- config stops at `config_key`
+- cross-file semantics such as `uses_table` and `configures` are intentionally deferred
+
+## 2026-06-08: Sensitive config values must not enter chunks or retrieval output
+
+This phase uses a simple key-name rule instead of a full secret scanner.
+
+If a config key path contains markers such as:
+
+- `password`
+- `secret`
+- `token`
+- `api_key`
+- `private_key`
+- `credential`
+
+then the raw value is masked and does not get written into structured chunk text.
+
+## 2026-06-08: Config arrays use one stable notation
+
+The current array policy is intentionally simple:
+
+- keep the parent key
+- emit a representative `[]` node
+- continue nested object keys using paths such as `servers[].host`
+
+This keeps config retrieval understandable without exploding chunk count.

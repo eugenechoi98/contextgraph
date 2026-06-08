@@ -96,7 +96,7 @@ def build_file_summary(
     symbols = [
         entity.symbol_name
         for entity in entities
-        if entity.entity_type in {"class", "function", "method", "api_route"} and entity.symbol_name
+        if entity.entity_type in {"class", "function", "method", "api_route", "db_table", "db_view", "db_index", "config_key"} and entity.symbol_name
     ]
     export_lines = "\n".join(f"- {item}" for item in exports[:24]) if exports else "- (no extracted exports)"
     import_lines = "\n".join(f"- {item}" for item in imports[:24]) if imports else "- (no extracted imports)"
@@ -258,6 +258,64 @@ def chunk_structured_source(source: SourceFile, parse_result: ParseResult) -> li
     return chunks
 
 
+def chunk_sql(source: SourceFile, parse_result: ParseResult) -> list[ChunkRecord]:
+    """Generate searchable schema-unit chunks for SQL entities."""
+
+    chunks: list[ChunkRecord] = []
+    for entity in parse_result.entities:
+        statement = entity.signature or entity.display_name
+        content = (
+            f"entity_type: {entity.entity_type}\n"
+            f"symbol_name: {entity.symbol_name or entity.display_name}\n"
+            f"line_range: {entity.line_start}-{entity.line_end}\n"
+            f"statement:\n{statement}"
+        )
+        chunks.append(
+            ChunkRecord(
+                entity_symbol_name=entity.symbol_name,
+                chunk_kind="schema_unit",
+                content=content,
+                tokens_estimate=estimate_tokens(content),
+                line_start=entity.line_start,
+                line_end=entity.line_end,
+                content_hash=_hash_text(content),
+            )
+        )
+    return chunks
+
+
+def chunk_config(source: SourceFile, parse_result: ParseResult) -> list[ChunkRecord]:
+    """Generate safe config chunks without leaking full sensitive values."""
+
+    chunks: list[ChunkRecord] = []
+    file_summary = build_file_summary(source, parse_result.entities, parse_result.relations)
+    chunks.append(
+        ChunkRecord(
+            entity_symbol_name=source.path,
+            chunk_kind="file_summary",
+            content=file_summary,
+            tokens_estimate=estimate_tokens(file_summary),
+            line_start=1,
+            line_end=max(1, source.line_count),
+            content_hash=_hash_text(file_summary),
+        )
+    )
+    for entity in parse_result.entities[:200]:
+        content = entity.signature or f"config_key {entity.display_name}"
+        chunks.append(
+            ChunkRecord(
+                entity_symbol_name=entity.symbol_name,
+                chunk_kind="schema_unit",
+                content=content,
+                tokens_estimate=estimate_tokens(content),
+                line_start=entity.line_start,
+                line_end=entity.line_end,
+                content_hash=_hash_text(content),
+            )
+        )
+    return chunks
+
+
 def chunk_source_file(
     source: SourceFile,
     settings: Settings,
@@ -278,6 +336,10 @@ def chunk_source_file(
             )
             for section in chunk_markdown(source)
         ]
+    if source.language == "sql" and parse_result is not None:
+        return chunk_sql(source, parse_result)
+    if source.language in {"json", "yaml", "toml"} and parse_result is not None:
+        return chunk_config(source, parse_result)
     if source.language in {"python", "typescript", "tsx", "javascript", "jsx"} and parse_result is not None:
         return chunk_structured_source(source, parse_result)
     return chunk_windowed(source, settings)

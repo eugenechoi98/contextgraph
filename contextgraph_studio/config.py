@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     max_file_bytes: int = 512_000
     chunk_lines: int = 80
     chunk_overlap: int = 10
+    config_parser_max_depth: int = 4
+    config_parser_max_keys: int = 200
     default_top_k: int = 8
     bm25_general_candidate_limit: int = Field(
         default=30,
@@ -145,6 +147,7 @@ class Settings(BaseSettings):
     exclude_path_prefixes: tuple[str, ...] = (
         "eval/fixtures",
         "eval/reports",
+        "tests/fixtures",
     )
     text_extensions: tuple[str, ...] = (
         ".py",
@@ -167,6 +170,14 @@ class Settings(BaseSettings):
         ".ps1",
         ".css",
         ".html",
+    )
+    sensitive_key_markers: tuple[str, ...] = (
+        "password",
+        "secret",
+        "token",
+        "api_key",
+        "private_key",
+        "credential",
     )
 
     def ensure_directories(self) -> None:

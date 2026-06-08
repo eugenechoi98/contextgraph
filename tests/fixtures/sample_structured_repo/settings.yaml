@@ -1,0 +1,6 @@
+service:
+  token: abc123secret
+  retries: 3
+database:
+  host: db.internal
+  port: 5432

@@ -6,6 +6,7 @@ ContextGraph Studio is a local retrieval stack for AI coding agents. The canonic
 
 - Repository indexing with `files / entities / chunks / traces / embeddings / relations / eval_runs`
 - Python plus minimal TypeScript / JavaScript parsing for `.ts`, `.tsx`, `.js`, and `.jsx`
+- Minimal structured parsing for `.sql`, `.json`, `.yaml`, `.yml`, and `.toml`
 - BM25 retrieval
 - Optional graph retrieval
 - Optional vector retrieval
@@ -63,6 +64,30 @@ Current extracted relations:
 
 Route extraction is intentionally narrow. It only covers clear static Express-like patterns such as `router.post("/login", loginHandler)`.
 
+## SQL and config support
+
+The current structured parser loop also supports:
+
+- `.sql`
+- `.json`
+- `.yaml`
+- `.yml`
+- `.toml`
+
+Current extracted structured entities:
+
+- `db_table`
+- `db_view`
+- `db_index`
+- `config_key`
+
+Current limits:
+
+- SQL only covers small `CREATE` statement parsing
+- config arrays use a simple `[]` path notation such as `servers[].host`
+- this phase does not add `uses_table` or `configures`
+- sensitive config values are masked and are not stored as raw chunk text
+
 ## Recommended local vector model
 
 Current recommended local code-specialized semantic baseline:
@@ -108,7 +133,8 @@ These are current-machine smoke numbers only. They are not a general SLA.
 
 ## Current validation status
 
-- `pytest tests` -> `102 passed, 1 warning`
+- `pytest tests` -> `108 passed, 1 warning`
 - `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
 - offline CodeRankEmbed eval metadata now records `model_smoke_status = coderankembed_smoke_passed`
 - `cgstudio index tests\fixtures\sample_ts_repo` -> `files=7`, `chunks=20`, `entities=27`, `relations=45`
+- `cgstudio index tests\fixtures\sample_structured_repo` -> `files=7`, `chunks=27`, `entities=30`, `relations=23`, `parse_errors=2`

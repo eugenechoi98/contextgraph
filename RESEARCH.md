@@ -35,3 +35,16 @@
   - ABI compatibility note:
     - the validated local combination for this workstation is `tree-sitter 0.25.2` + `tree-sitter-javascript 0.25.0` + `tree-sitter-typescript 0.23.2`
     - this combination was smoke-tested successfully in the project venv on Windows without adding a Node.js build step or compiling grammars locally
+- 2026-06-08 Phase 4D implementation notes:
+  - SQL parsing in this phase stays on a small `regex + statement splitter` approach; no heavy SQL parser dependency was added.
+  - Structured config parsing uses the standard library where possible:
+    - `json`
+    - `tomllib`
+    - existing project dependency `pyyaml`
+  - Array strategy is intentionally simple:
+    - parent array key is extracted
+    - one representative `[]` path is extracted
+    - nested object keys can continue as `servers[].host`
+  - Sensitive config handling in this phase is key-name based:
+    - markers include `password`, `secret`, `token`, `api_key`, `private_key`, `credential`
+    - matching keys keep the key path but do not keep the raw value in entity or chunk content

@@ -1,0 +1,12 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "password": "super-secret-password"
+  },
+  "servers": [
+    {
+      "host": "api.internal"
+    }
+  ]
+}

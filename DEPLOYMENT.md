@@ -56,12 +56,13 @@ python -m venv .venv
 
 ## Current validation baseline
 
-- `pytest tests` -> `102 passed, 1 warning`
+- `pytest tests` -> `108 passed, 1 warning`
 - `cgstudio index .` -> `parse_errors = 0`
 - `cgstudio retrieve ...` -> BM25 + Graph works in default mode
 - `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
 - offline CodeRankEmbed eval metadata records `model_smoke_status = coderankembed_smoke_passed`
 - `cgstudio index tests\fixtures\sample_ts_repo` -> `files=7`, `chunks=20`, `entities=27`, `relations=45`
+- `cgstudio index tests\fixtures\sample_structured_repo` -> `files=7`, `chunks=27`, `entities=30`, `relations=23`, `parse_errors=2`
 
 ## TypeScript / JavaScript parser scope
 
@@ -93,6 +94,35 @@ Current limits:
 - dynamic route builders are skipped
 - `tests/fixtures` is excluded from normal canonical workspace indexing
 - fixture repos can still be indexed directly when they are used as the repo root
+
+## SQL / config parser scope
+
+Current structured parser support covers:
+
+- `.sql`
+- `.json`
+- `.yaml`
+- `.yml`
+- `.toml`
+
+Current extracted entities:
+
+- `db_table`
+- `db_view`
+- `db_index`
+- `config_key`
+
+Current chunk behavior:
+
+- SQL emits `schema_unit`
+- config emits `file_summary` plus bounded `schema_unit`
+
+Current limits:
+
+- config arrays use a simple `[]` key-path strategy
+- sensitive key values are masked by key name
+- graph only gets `contains`
+- `uses_table` and `configures` are not implemented in this phase
 
 ## Model policy
 

@@ -3,7 +3,7 @@
 from pathlib import Path
 
 
-SOURCE_SUFFIXES = {".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".rs", ".java", ".kt", ".sql"}
+SOURCE_SUFFIXES = {".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".rs", ".java", ".kt"}
 DOC_SUFFIXES = {".md", ".txt", ".rst"}
 CONFIG_SUFFIXES = {".json", ".yaml", ".yml", ".toml", ".ini", ".env"}
 ASSET_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".pdf"}
@@ -64,6 +64,8 @@ def classify_file(path: Path) -> tuple[str, str]:
     if any(part in {"docs", "doc"} for part in lower_parts) or suffix in DOC_SUFFIXES:
         return "doc", detect_language(path)
     if any(part in {"schema", "schemas", "migrations"} for part in lower_parts):
+        return "schema", detect_language(path)
+    if suffix == ".sql":
         return "schema", detect_language(path)
     if suffix in CONFIG_SUFFIXES:
         return "config", detect_language(path)

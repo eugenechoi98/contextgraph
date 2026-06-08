@@ -32,3 +32,7 @@
 - 2026-06-08: Added minimal TS/JS entity extraction for `module`, `class`, `function`, `method`, and `api_route`, plus `imports`, `calls`, and `route_to_handler`
 - 2026-06-08: Added `tests/fixtures/sample_ts_repo`, new TS/JS parser/index/graph tests, and excluded `tests/fixtures` from canonical workspace indexing
 - 2026-06-08: Passed fixture smoke and canonical Python regression, with full validation updated to `102 passed, 1 warning`
+- 2026-06-08: Committed Phase 4C checkpoint as `175bdff` and entered Phase 4D for SQL plus structured config parsing
+- 2026-06-08: Added minimal `sql_parser.py` and `config_parser.py`, covering `db_table`, `db_view`, `db_index`, and `config_key`
+- 2026-06-08: Added `tests/fixtures/sample_structured_repo`, new SQL/config/index tests, and safe config masking rules for sensitive keys
+- 2026-06-08: Passed structured fixture smoke, restored canonical repo with `parse_errors=0`, and updated full validation to `108 passed, 1 warning`

@@ -17,7 +17,9 @@ from contextgraph_studio.domain import (
 )
 from contextgraph_studio.graph.builder import build_relations_for_scan
 from contextgraph_studio.indexing.vector_store import sync_embeddings_for_scan
+from contextgraph_studio.parsers.config_parser import ConfigParser
 from contextgraph_studio.parsers.python_parser import PythonParser
+from contextgraph_studio.parsers.sql_parser import SqlParser
 from contextgraph_studio.parsers.typescript_parser import TypeScriptParser
 from contextgraph_studio.services.chunker import chunk_source_file
 from contextgraph_studio.services.intake import scan_repository
@@ -446,6 +448,10 @@ def _index_source_file(
         parse_result = PythonParser().parse(source_file.path, source_file.content, file_id)
     elif source_file.language in {"typescript", "tsx", "javascript", "jsx"}:
         parse_result = TypeScriptParser().parse(source_file.path, source_file.content, file_id, source_file.language)
+    elif source_file.language == "sql":
+        parse_result = SqlParser().parse(source_file.path, source_file.content, file_id)
+    elif source_file.language in {"json", "yaml", "toml"}:
+        parse_result = ConfigParser().parse(source_file.path, source_file.content, file_id, source_file.language, settings)
 
     if parse_result is not None:
         parsed_entities = parse_result.entities
