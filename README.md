@@ -2,6 +2,8 @@
 
 ContextGraph Studio is local context-retrieval infrastructure for AI coding agents.
 
+Repository: https://github.com/eugenechoi98/contextgraph
+
 It indexes a repository, builds searchable code/document chunks, and returns a structured `ContextPack` through CLI, FastAPI, or MCP. It is not a general RAG chatbot and it does not include a chat UI.
 
 Default mode does not require an LLM API key, does not download an embedding model, and does not require `trust_remote_code`.

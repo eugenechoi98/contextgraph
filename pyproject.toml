@@ -41,6 +41,10 @@ swebench = [
 contextgraph = "contextgraph_studio.cli:app"
 cgstudio = "contextgraph_studio.cli:app"
 
+[project.urls]
+Repository = "https://github.com/eugenechoi98/contextgraph"
+Issues = "https://github.com/eugenechoi98/contextgraph/issues"
+
 [tool.setuptools.packages.find]
 include = ["contextgraph_studio*"]
 
