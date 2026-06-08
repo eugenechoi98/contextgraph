@@ -309,3 +309,41 @@ Conclusion:
 - structured candidate lanes are enough for the current fixture cases
 - graph does not add measurable value in this fixture yet
 - new structured edges should wait for a real retrieval gap
+
+## SWE-bench Lite manifest smoke
+
+Phase 4E-A adds a dry-run SWE-bench Lite inspect command.
+
+Run:
+
+```powershell
+.\.venv\Scripts\cgstudio.exe swebench-inspect `
+  --dataset tests\fixtures\swebench_lite_sample.jsonl `
+  --max-instances 4 `
+  --output-dir eval\manifests\generated
+```
+
+Expected summary:
+
+- `instance_count=4`
+- `critical_file_count=4`
+- `excluded_file_count=1`
+
+Generated files:
+
+- `eval\manifests\generated\swebench_lite_manifest.json`
+- `eval\manifests\generated\swebench_lite_manifest.md`
+
+Boundary:
+
+- no repo clone
+- no checkout
+- no Docker
+- no indexing
+- no retrieval
+- no canonical DB write
+- no network by default
+
+Latest full validation:
+
+- `pytest tests` -> `130 passed, 1 warning`

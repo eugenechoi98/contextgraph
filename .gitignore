@@ -5,6 +5,7 @@ __pycache__/
 .tmp*/
 tmp_pytest*/
 eval/reports/
+eval/manifests/generated/
 *.db
 *.sqlite
 *.sqlite3

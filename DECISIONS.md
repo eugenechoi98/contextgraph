@@ -347,3 +347,22 @@ Reason:
 
 - a new graph edge should solve a real retrieval gap, not just add graph activity
 - adding an edge now would not improve the measured structured fixture eval
+
+## 2026-06-08: SWE-bench Lite starts as a manifest layer, not a harness
+
+Phase 4E-A adds SWE-bench Lite intake only.
+
+Decision:
+
+- support local JSON / JSONL first
+- support Hugging Face only behind explicit `allow_network`
+- generate changed-file ground truth manifests
+- do not clone repositories
+- do not checkout commits
+- do not run Docker
+- do not run retrieval benchmarks yet
+
+Reason:
+
+- the project first needs trustworthy external ground truth extraction
+- running the full SWE-bench harness is a separate, higher-cost phase

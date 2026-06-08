@@ -18,6 +18,7 @@ from contextgraph_studio.application.retrieve_context import RetrieveContextServ
 from contextgraph_studio.application.scan_repo import ScanRepoService
 from contextgraph_studio.config import get_settings
 from contextgraph_studio.db import init_db
+from contextgraph_studio.eval.datasets.swebench_lite import inspect_swebench_lite
 from contextgraph_studio.eval.runner import run_eval
 from contextgraph_studio.graph.traversal import graph_search
 from contextgraph_studio.models.context_pack import RetrieveContextRequest
@@ -155,6 +156,47 @@ def cli_eval(
             }
             for config_result in result.configs
         ],
+    }
+    typer.echo(json.dumps(summary, ensure_ascii=False, indent=2))
+
+
+@app.command("swebench-inspect")
+def cli_swebench_inspect(
+    dataset: Annotated[Path | None, typer.Option("--dataset")] = None,
+    source: Annotated[str, typer.Option("--source")] = "local",
+    split: Annotated[str, typer.Option("--split")] = "test",
+    max_instances: Annotated[int | None, typer.Option("--max-instances")] = None,
+    instance_id: Annotated[list[str] | None, typer.Option("--instance-id")] = None,
+    output_dir: Annotated[Path, typer.Option("--output-dir")] = Path("eval/manifests/generated"),
+    allow_network: Annotated[bool, typer.Option("--allow-network")] = False,
+    critical_lines_threshold: Annotated[int, typer.Option("--critical-lines-threshold")] = 5,
+) -> None:
+    """Inspect SWE-bench Lite data and generate dry-run ground truth manifests."""
+
+    if source not in {"local", "hf"}:
+        typer.echo("--source must be either 'local' or 'hf'.", err=True)
+        raise typer.Exit(code=1)
+    try:
+        manifest, json_path, markdown_path = inspect_swebench_lite(
+            dataset_path=dataset,
+            source=source,  # type: ignore[arg-type]
+            split=split,
+            max_instances=max_instances,
+            instance_ids=set(instance_id or []) or None,
+            output_dir=output_dir,
+            allow_network=allow_network,
+            critical_changed_lines_threshold=critical_lines_threshold,
+        )
+    except Exception as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    summary = {
+        "json_manifest_path": str(json_path),
+        "markdown_manifest_path": str(markdown_path),
+        "instance_count": manifest.total_instances,
+        "critical_file_count": sum(len(instance.critical_files) for instance in manifest.instances),
+        "excluded_file_count": sum(len(instance.excluded_files) for instance in manifest.instances),
     }
     typer.echo(json.dumps(summary, ensure_ascii=False, indent=2))
 

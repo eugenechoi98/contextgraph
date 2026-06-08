@@ -289,3 +289,35 @@
   - scan_run_id `c1615878-dba7-46f7-9357-a69588a62db8`
   - `parse_errors=0`
   - default mode still does not auto-download embedding models
+
+## Phase 4E-A Note
+
+- Phase 4D.2 was checkpointed as commit `60a2eff` (`feat(eval): add structured relation value audit`).
+- Added a lightweight SWE-bench Lite dataset layer:
+  - `contextgraph_studio/eval/datasets/swebench_lite.py`
+  - `contextgraph_studio/eval/datasets/__init__.py`
+- Current scope:
+  - local `.json` / `.jsonl` loader
+  - optional Hugging Face loader for `princeton-nlp/SWE-bench_Lite`
+  - default no-network behavior
+  - unified diff changed-file extraction
+  - lockfile / generated / vendor exclusion
+  - expected / critical file manifest generation
+  - JSON and Markdown manifest output
+  - dry-run CLI inspect command
+- Added CLI:
+  - `cgstudio swebench-inspect`
+- Added synthetic fixture:
+  - `tests/fixtures/swebench_lite_sample.jsonl`
+- Added tests:
+  - `tests/test_swebench_lite_loader.py`
+  - `tests/test_swebench_patch_parser.py`
+  - `tests/test_swebench_manifest_cli.py`
+- Manifest smoke succeeded locally:
+  - command: `cgstudio swebench-inspect --dataset tests\fixtures\swebench_lite_sample.jsonl --max-instances 4 --output-dir eval\manifests\generated`
+  - `instance_count=4`
+  - `critical_file_count=4`
+  - `excluded_file_count=1`
+- Latest full validation is now `130 passed, 1 warning`.
+- This phase did not clone repos, checkout commits, run Docker, run retrieval, run benchmark jobs, or write the canonical DB.
+- Hugging Face smoke was not executed.

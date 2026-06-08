@@ -97,6 +97,30 @@ Database and configuration task hints are now supported by the planner:
 
 These lanes only add candidates. They do not change BM25 scoring, RRF, graph traversal, token budget, or the public `ContextPack` schema.
 
+## SWE-bench Lite inspect
+
+The current SWE-bench support is a dry-run manifest layer only.
+
+It supports:
+
+- local `.json` / `.jsonl` loading
+- optional Hugging Face loading with explicit network opt-in
+- patch changed-file extraction
+- generated / lockfile exclusion
+- expected and critical file manifest generation
+- JSON and Markdown output
+
+It does not clone repos, checkout commits, run Docker, index repos, retrieve context, or run the full benchmark.
+
+Example:
+
+```powershell
+.\.venv\Scripts\cgstudio.exe swebench-inspect `
+  --dataset tests\fixtures\swebench_lite_sample.jsonl `
+  --max-instances 4 `
+  --output-dir eval\manifests\generated
+```
+
 ## Recommended local vector model
 
 Current recommended local code-specialized semantic baseline:
@@ -142,10 +166,11 @@ These are current-machine smoke numbers only. They are not a general SLA.
 
 ## Current validation status
 
-- `pytest tests` -> `114 passed, 1 warning`
+- `pytest tests` -> `130 passed, 1 warning`
 - `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
 - offline CodeRankEmbed eval metadata now records `model_smoke_status = coderankembed_smoke_passed`
 - `cgstudio index tests\fixtures\sample_ts_repo` -> `files=7`, `chunks=20`, `entities=27`, `relations=45`
 - `cgstudio index tests\fixtures\sample_structured_repo` -> `files=7`, `chunks=29`, `entities=32`, `relations=25`, `parse_errors=2`
 - `cgstudio eval --dataset eval\fixtures\structured_golden.json --config bm25_only --config bm25_graph` -> `4 active cases`, `failed_case_count = 0`
 - latest Phase 4D.2 structured fixture smoke with consumer source files -> `files=10`, `chunks=37`, `entities=43`, `relations=38`, `parse_errors=2`
+- `cgstudio swebench-inspect --dataset tests\fixtures\swebench_lite_sample.jsonl --max-instances 4` -> `4 instances`, `4 critical files`, `1 excluded file`

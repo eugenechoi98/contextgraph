@@ -31,6 +31,9 @@ local-embeddings = [
   "sentence-transformers>=3.0,<4.0",
   "einops>=0.8,<1.0",
 ]
+swebench = [
+  "datasets>=3.0,<4.0",
+]
 
 [project.scripts]
 contextgraph = "contextgraph_studio.cli:app"

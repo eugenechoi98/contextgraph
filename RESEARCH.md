@@ -62,3 +62,16 @@
   - Natural-language strings such as `users can update their profile` are recorded as skipped candidates, not materialized relations.
   - `configures` candidates are limited to static access such as `config["database"]["host"]` and `.get(...)` chains.
   - The audit found no current fixture retrieval gap that requires a new graph edge, so no edge was added.
+- 2026-06-08 Phase 4E-A official-source check:
+  - Official Hugging Face dataset used by the optional loader:
+    - `princeton-nlp/SWE-bench_Lite`
+  - The Hugging Face dataset page shows a `test` split with `300` rows and a `dev` split with `23` rows.
+  - Fields visible on the dataset page include:
+    - `repo`
+    - `instance_id`
+    - `base_commit`
+    - `patch`
+    - `test_patch`
+    - `problem_statement`
+  - The current project implementation only builds a dry-run manifest from instance data and patches.
+  - Full SWE-bench harness behavior such as repo checkout, patch application, tests, and Docker remains out of scope for Phase 4E-A.

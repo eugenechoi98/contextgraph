@@ -45,3 +45,7 @@
 - 2026-06-08: Added structured source consumer fixture files plus read-only relation diagnostics for `uses_table` and `configures` candidates
 - 2026-06-08: Published `eval/analysis/structured_relation_value_audit.md`; concluded that no new edge should be implemented yet because structured fixture retrieval already returns consumer source
 - 2026-06-08: Passed Phase 4D.2 targeted tests, structured eval smoke, canonical regression index, and full validation `114 passed, 1 warning`
+- 2026-06-08: Committed Phase 4D.2 checkpoint as `60a2eff` and entered Phase 4E-A for SWE-bench Lite loader plus ground truth manifest support
+- 2026-06-08: Added local JSON/JSONL SWE-bench Lite loader, optional no-network-by-default Hugging Face loader, patch changed-file extraction, and manifest models
+- 2026-06-08: Added `cgstudio swebench-inspect`, synthetic SWE-bench fixture, and manifest CLI smoke without cloning repos, checking out commits, running Docker, or writing the canonical DB
+- 2026-06-08: Passed Phase 4E-A targeted tests, synthetic manifest smoke, and full validation `130 passed, 1 warning`
