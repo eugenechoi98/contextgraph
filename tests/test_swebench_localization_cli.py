@@ -4,6 +4,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 import contextgraph_studio.cli as cli_module
+from tests.helpers import strip_ansi
 
 
 runner = CliRunner()
@@ -32,10 +33,11 @@ def write_manifest(path: Path) -> None:
 
 def test_swebench_localize_help() -> None:
     result = runner.invoke(cli_module.app, ["swebench-localize", "--help"])
+    output = strip_ansi(result.stdout)
 
     assert result.exit_code == 0
-    assert "--manifest" in result.stdout
-    assert "--dry-run" in result.stdout
+    assert "--manifest" in output
+    assert "--dry-run" in output
 
 
 def test_swebench_localize_dry_run_cli_writes_reports(tmp_path: Path) -> None:

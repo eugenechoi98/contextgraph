@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 import contextgraph_studio.cli as cli_module
 from contextgraph_studio.config import Settings
 from contextgraph_studio.services.indexer import index_repository
+from tests.helpers import strip_ansi
 
 
 runner = CliRunner()
@@ -62,8 +63,10 @@ def write_dataset(path: Path) -> None:
 
 def test_cli_eval_help() -> None:
     result = runner.invoke(cli_module.app, ["eval", "--help"])
+    output = strip_ansi(result.stdout)
+
     assert result.exit_code == 0
-    assert "--repo-id" in result.stdout
+    assert "--repo-id" in output
 
 
 def test_cli_eval_runs_with_selected_config_and_max_cases(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]

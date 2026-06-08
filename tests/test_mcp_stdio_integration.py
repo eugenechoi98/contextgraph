@@ -1,6 +1,8 @@
 import json
 import os
+import sys
 from pathlib import Path
+from shutil import which
 from uuid import uuid4
 
 import anyio
@@ -21,6 +23,16 @@ def build_repo(repo: Path) -> None:
     )
 
 
+def cgstudio_executable() -> str:
+    executable = which("cgstudio")
+    if executable:
+        return executable
+
+    scripts_dir = Path(sys.executable).parent
+    executable_name = "cgstudio.exe" if os.name == "nt" else "cgstudio"
+    return str(scripts_dir / executable_name)
+
+
 @pytest.mark.anyio
 async def test_mcp_stdio_real_protocol_roundtrip(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
@@ -34,7 +46,7 @@ async def test_mcp_stdio_real_protocol_roundtrip(tmp_path: Path) -> None:
     env["CGSTUDIO_DB_PATH"] = str(database_path)
 
     server = StdioServerParameters(
-        command=str(Path.cwd() / ".venv" / "Scripts" / "cgstudio.exe"),
+        command=cgstudio_executable(),
         args=["mcp"],
         cwd=str(Path.cwd()),
         env=env,
@@ -155,7 +167,7 @@ async def test_mcp_stdio_can_restart_cleanly(tmp_path: Path) -> None:
         env = os.environ.copy()
         env["CGSTUDIO_DB_PATH"] = str(database_path)
         server = StdioServerParameters(
-            command=str(Path.cwd() / ".venv" / "Scripts" / "cgstudio.exe"),
+            command=cgstudio_executable(),
             args=["mcp"],
             cwd=str(Path.cwd()),
             env=env,

@@ -4,6 +4,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 import contextgraph_studio.cli as cli_module
+from tests.helpers import strip_ansi
 
 
 runner = CliRunner()
@@ -12,10 +13,11 @@ FIXTURE = Path("tests/fixtures/swebench_lite_sample.jsonl")
 
 def test_swebench_inspect_help() -> None:
     result = runner.invoke(cli_module.app, ["swebench-inspect", "--help"])
+    output = strip_ansi(result.stdout)
 
     assert result.exit_code == 0
-    assert "--dataset" in result.stdout
-    assert "--allow-network" in result.stdout
+    assert "--dataset" in output
+    assert "--allow-network" in output
 
 
 def test_swebench_inspect_generates_json_and_markdown_without_db_or_clone(tmp_path: Path) -> None:
