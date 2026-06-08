@@ -43,6 +43,24 @@ class Settings(BaseSettings):
         ge=1,
         validation_alias=AliasChoices("BM25_SOURCE_CODE_CANDIDATE_LIMIT", "CONTEXTGRAPH_BM25_SOURCE_CODE_CANDIDATE_LIMIT"),
     )
+    bm25_schema_lane_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("BM25_SCHEMA_LANE_ENABLED", "CONTEXTGRAPH_BM25_SCHEMA_LANE_ENABLED"),
+    )
+    bm25_schema_candidate_limit: int = Field(
+        default=8,
+        ge=1,
+        validation_alias=AliasChoices("BM25_SCHEMA_CANDIDATE_LIMIT", "CONTEXTGRAPH_BM25_SCHEMA_CANDIDATE_LIMIT"),
+    )
+    bm25_config_lane_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("BM25_CONFIG_LANE_ENABLED", "CONTEXTGRAPH_BM25_CONFIG_LANE_ENABLED"),
+    )
+    bm25_config_candidate_limit: int = Field(
+        default=8,
+        ge=1,
+        validation_alias=AliasChoices("BM25_CONFIG_CANDIDATE_LIMIT", "CONTEXTGRAPH_BM25_CONFIG_CANDIDATE_LIMIT"),
+    )
     bm25_lexical_expansion_enabled: bool = Field(
         default=True,
         validation_alias=AliasChoices("BM25_LEXICAL_EXPANSION_ENABLED", "CONTEXTGRAPH_BM25_LEXICAL_EXPANSION_ENABLED"),

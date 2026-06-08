@@ -223,3 +223,53 @@ The numbers below are current-machine smoke data only:
 - CodeRankEmbed cache size after download: about `640 MB`
 
 They are reference numbers, not a general SLA.
+
+## Structured task strategy smoke
+
+Phase 4D.1 adds planner support for:
+
+- `task_hint=database`
+- `task_hint=configuration`
+
+The corresponding BM25 candidate lanes are:
+
+- `schema`
+- `config`
+
+Current environment knobs:
+
+```env
+BM25_SCHEMA_LANE_ENABLED=true
+BM25_SCHEMA_CANDIDATE_LIMIT=8
+BM25_CONFIG_LANE_ENABLED=true
+BM25_CONFIG_CANDIDATE_LIMIT=8
+```
+
+Fresh structured fixture smoke:
+
+- `cgstudio index tests\fixtures\sample_structured_repo`
+- repo_id `4d8c11cb-8735-5b60-bb71-924909bcf77e`
+- scan_run_id `43d6ab8f-fa98-42c9-86c1-a710308936af`
+- `files=7`
+- `chunks=29`
+- `entities=32`
+- `relations=25`
+- `parse_errors=2`
+
+Structured eval smoke:
+
+- dataset `eval\fixtures\structured_golden.json`
+- configs `bm25_only`, `bm25_graph`
+- `active_case_count=4`
+- `failed_case_count=0`
+
+Latest full validation:
+
+- `pytest tests` -> `111 passed, 1 warning`
+
+Latest canonical regression index:
+
+- repo_id `8bf02440-5d4e-5fa2-8916-a955c2c21fd2`
+- scan_run_id `008a0b47-659f-4243-a20e-052322c4da0f`
+- `parse_errors=0`
+- default mode still does not auto-download embedding models

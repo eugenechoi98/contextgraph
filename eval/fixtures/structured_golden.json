@@ -1,0 +1,102 @@
+{
+  "dataset": "structured_golden",
+  "description": "Small structured fixture dataset for SQL and config task strategy smoke evaluation.",
+  "cases": [
+    {
+      "id": "database_table_001",
+      "query": "Update the users table schema for account status",
+      "task_hint": "database",
+      "repo_id": null,
+      "expected_files": [
+        "schema.sql"
+      ],
+      "critical_files": [
+        "schema.sql"
+      ],
+      "helpful_files": [
+        "migration.sql"
+      ],
+      "intent_tags": [
+        "database",
+        "schema",
+        "table"
+      ],
+      "expects_tests": "implicit",
+      "graph_expectation": "none",
+      "notes": "The users table is declared in schema.sql; migration.sql is helpful because it shows another table definition pattern.",
+      "status": "active"
+    },
+    {
+      "id": "database_index_001",
+      "query": "Change the users email database index",
+      "task_hint": "database",
+      "repo_id": null,
+      "expected_files": [
+        "schema.sql"
+      ],
+      "critical_files": [
+        "schema.sql"
+      ],
+      "helpful_files": [
+        "migration.sql"
+      ],
+      "intent_tags": [
+        "database",
+        "index"
+      ],
+      "expects_tests": "implicit",
+      "graph_expectation": "none",
+      "notes": "idx_users_email is declared in schema.sql, so that file is the strict target.",
+      "status": "active"
+    },
+    {
+      "id": "configuration_host_001",
+      "query": "Change the database host configuration",
+      "task_hint": "configuration",
+      "repo_id": null,
+      "expected_files": [
+        "settings.yaml"
+      ],
+      "critical_files": [
+        "settings.yaml"
+      ],
+      "helpful_files": [
+        "config.json",
+        "pyproject.toml"
+      ],
+      "intent_tags": [
+        "configuration",
+        "database",
+        "host"
+      ],
+      "expects_tests": "implicit",
+      "graph_expectation": "none",
+      "notes": "settings.yaml carries the db.internal host value; JSON and TOML also demonstrate equivalent key paths.",
+      "status": "active"
+    },
+    {
+      "id": "configuration_json_001",
+      "query": "Update the API timeout setting",
+      "task_hint": "configuration",
+      "repo_id": null,
+      "expected_files": [
+        "config.json"
+      ],
+      "critical_files": [
+        "config.json"
+      ],
+      "helpful_files": [
+        "settings.yaml",
+        "pyproject.toml"
+      ],
+      "intent_tags": [
+        "configuration",
+        "json"
+      ],
+      "expects_tests": "implicit",
+      "graph_expectation": "none",
+      "notes": "config.json is the JSON fixture target for structured config retrieval; adjacent config files are helpful context.",
+      "status": "active"
+    }
+  ]
+}

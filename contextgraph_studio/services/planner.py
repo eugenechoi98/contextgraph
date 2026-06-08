@@ -25,8 +25,13 @@ class RetrievalPlan:
     priority_entity_types: list[str]
     search_mode: str
     bm25_general_candidate_limit: int
+    candidate_lanes: list[str]
     source_code_lane_enabled: bool
     source_code_candidate_limit: int
+    schema_lane_enabled: bool
+    schema_candidate_limit: int
+    config_lane_enabled: bool
+    config_candidate_limit: int
     lexical_expansion_enabled: bool
 
 
@@ -85,6 +90,15 @@ def _build_retrieval_plan(
     source_code_lane_enabled = bool(
         config.get("source_code_lane_enabled", _default_source_code_lane(task_type, priority_categories, query))
     )
+    schema_lane_enabled = bool(config.get("schema_lane_enabled", task_type == "database"))
+    config_lane_enabled = bool(config.get("config_lane_enabled", task_type == "configuration"))
+    candidate_lanes = ["general"]
+    if source_code_lane_enabled:
+        candidate_lanes.append("source_code")
+    if schema_lane_enabled:
+        candidate_lanes.append("schema")
+    if config_lane_enabled:
+        candidate_lanes.append("config")
     token_budget = max_tokens or int(config.get("default_token_budget", 4000))
     return RetrievalPlan(
         task_type=task_type,
@@ -102,8 +116,13 @@ def _build_retrieval_plan(
         priority_entity_types=list(config.get("priority_entity_types", [])),
         search_mode=search_mode,
         bm25_general_candidate_limit=settings.bm25_general_candidate_limit,
+        candidate_lanes=candidate_lanes,
         source_code_lane_enabled=source_code_lane_enabled,
         source_code_candidate_limit=settings.bm25_source_code_candidate_limit,
+        schema_lane_enabled=schema_lane_enabled,
+        schema_candidate_limit=settings.bm25_schema_candidate_limit,
+        config_lane_enabled=config_lane_enabled,
+        config_candidate_limit=settings.bm25_config_candidate_limit,
         lexical_expansion_enabled=settings.bm25_lexical_expansion_enabled,
     )
 

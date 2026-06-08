@@ -8,5 +8,8 @@
     {
       "host": "api.internal"
     }
-  ]
+  ],
+  "api": {
+    "timeout": 30
+  }
 }

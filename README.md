@@ -88,6 +88,14 @@ Current limits:
 - this phase does not add `uses_table` or `configures`
 - sensitive config values are masked and are not stored as raw chunk text
 
+Database and configuration task hints are now supported by the planner:
+
+- `task_hint=database` prioritizes schema files and can run a bounded `schema` BM25 candidate lane
+- `task_hint=configuration` prioritizes config files and can run a bounded `config` BM25 candidate lane
+- obvious database/configuration keywords can classify the task when no explicit hint is supplied
+
+These lanes only add candidates. They do not change BM25 scoring, RRF, graph traversal, token budget, or the public `ContextPack` schema.
+
 ## Recommended local vector model
 
 Current recommended local code-specialized semantic baseline:
@@ -133,8 +141,9 @@ These are current-machine smoke numbers only. They are not a general SLA.
 
 ## Current validation status
 
-- `pytest tests` -> `108 passed, 1 warning`
+- `pytest tests` -> `111 passed, 1 warning`
 - `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
 - offline CodeRankEmbed eval metadata now records `model_smoke_status = coderankembed_smoke_passed`
 - `cgstudio index tests\fixtures\sample_ts_repo` -> `files=7`, `chunks=20`, `entities=27`, `relations=45`
-- `cgstudio index tests\fixtures\sample_structured_repo` -> `files=7`, `chunks=27`, `entities=30`, `relations=23`, `parse_errors=2`
+- `cgstudio index tests\fixtures\sample_structured_repo` -> `files=7`, `chunks=29`, `entities=32`, `relations=25`, `parse_errors=2`
+- `cgstudio eval --dataset eval\fixtures\structured_golden.json --config bm25_only --config bm25_graph` -> `4 active cases`, `failed_case_count = 0`

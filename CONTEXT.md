@@ -207,3 +207,44 @@
   - repo_id `8bf02440-5d4e-5fa2-8916-a955c2c21fd2`
   - scan_run_id `b05edac4-3a82-45f8-a53a-0a6b3b18b1fa`
   - `parse_errors=0`
+
+## Phase 4D.1 Note
+
+- Phase 4D was checkpointed as commit `39509f1` (`feat(parser): add SQL and config structured indexing`).
+- `database` and `configuration` are now first-class task strategies in `config/task_strategies.yaml`.
+- Explicit `task_hint` is honored first, and keyword matching can now classify obvious database/configuration queries when no hint is provided.
+- `RetrievalPlan` now records structured candidate lane intent through:
+  - `candidate_lanes`
+  - `schema_lane_enabled`
+  - `schema_candidate_limit`
+  - `config_lane_enabled`
+  - `config_candidate_limit`
+- BM25 recall now has two additional bounded supplemental lanes:
+  - `schema` for `database` tasks
+  - `config` for `configuration` tasks
+- These lanes add candidates only. They do not change BM25 scoring, RRF, token budget, graph traversal, or `ContextPack` schema.
+- Route diagnostics now expose lane-level evidence under `route_diagnostics.bm25_lanes`.
+- Current graph boundary is unchanged:
+  - no `uses_table`
+  - no `configures`
+  - no new edge types
+- A separate structured eval dataset was added at `eval/fixtures/structured_golden.json` to avoid mixing fixture cases into the canonical repo golden dataset.
+- Structured fixture smoke used a fresh DB and passed:
+  - repo_id `4d8c11cb-8735-5b60-bb71-924909bcf77e`
+  - scan_run_id `43d6ab8f-fa98-42c9-86c1-a710308936af`
+  - `files=7`
+  - `chunks=29`
+  - `entities=32`
+  - `relations=25`
+  - `parse_errors=2`
+- Structured eval smoke passed:
+  - dataset `eval/fixtures/structured_golden.json`
+  - configs `bm25_only`, `bm25_graph`
+  - `active_case_count=4`
+  - `failed_case_count=0`
+- Latest full validation is now `111 passed, 1 warning`.
+- Latest canonical regression scan is:
+  - repo_id `8bf02440-5d4e-5fa2-8916-a955c2c21fd2`
+  - scan_run_id `008a0b47-659f-4243-a20e-052322c4da0f`
+  - `parse_errors=0`
+  - default mode still does not auto-download embedding models

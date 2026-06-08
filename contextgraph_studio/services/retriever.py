@@ -131,16 +131,20 @@ def stable_merge_and_dedupe_hits(
     general_hits: list[ScoredChunk],
     source_code_hits: list[ScoredChunk],
     *,
+    extra_lane_hits: list[list[ScoredChunk]] | None = None,
     limit: int,
 ) -> list[ScoredChunk]:
-    """Preserve general-lane order, then append unseen source-code candidates."""
+    """Preserve general-lane order, then append unseen supplemental candidates."""
 
     if limit <= 0:
         raise ValueError("Merged BM25 candidate limit must be greater than 0.")
 
     merged: list[ScoredChunk] = []
     seen: set[str] = set()
-    for hit in [*general_hits, *source_code_hits]:
+    supplemental_hits: list[ScoredChunk] = []
+    for lane_hits in extra_lane_hits or []:
+        supplemental_hits.extend(lane_hits)
+    for hit in [*general_hits, *source_code_hits, *supplemental_hits]:
         if hit.chunk_id in seen:
             continue
         seen.add(hit.chunk_id)
@@ -311,7 +315,9 @@ def retrieve_context_debug(
     bm25_candidate_limit = max(
         recall_top_k,
         settings.bm25_general_candidate_limit
-        + (settings.bm25_source_code_candidate_limit if settings.bm25_source_code_lane_enabled else 0),
+        + (settings.bm25_source_code_candidate_limit if settings.bm25_source_code_lane_enabled else 0)
+        + (settings.bm25_schema_candidate_limit if settings.bm25_schema_lane_enabled else 0)
+        + (settings.bm25_config_candidate_limit if settings.bm25_config_lane_enabled else 0),
     )
     route_warnings: list[str] = []
     requested_routes = ["bm25"]
@@ -516,60 +522,151 @@ def run_bm25_recall(
     ]
 
     source_code_hits: list[ScoredChunk] = []
+    schema_hits: list[ScoredChunk] = []
+    config_hits: list[ScoredChunk] = []
     lane_diagnostics = {
+        "candidate_lanes": list(plan.candidate_lanes),
         "general_limit": plan.bm25_general_candidate_limit,
         "source_code_lane_enabled": bool(settings.bm25_source_code_lane_enabled and plan.source_code_lane_enabled),
         "source_code_limit": plan.source_code_candidate_limit,
+        "schema_lane_enabled": bool(settings.bm25_schema_lane_enabled and plan.schema_lane_enabled),
+        "schema_limit": plan.schema_candidate_limit,
+        "config_lane_enabled": bool(settings.bm25_config_lane_enabled and plan.config_lane_enabled),
+        "config_limit": plan.config_candidate_limit,
         "lexical_expansion_enabled": bool(plan.lexical_expansion_enabled),
         "general_hit_count": len(general_hits),
         "source_code_hit_count": 0,
+        "schema_hit_count": 0,
+        "config_hit_count": 0,
+        "general": {"executed": True, "hit_count": len(general_hits), "limit": plan.bm25_general_candidate_limit},
+        "source_code": {"executed": False, "hit_count": 0, "reason": "disabled_for_task"},
+        "schema": {"executed": False, "hit_count": 0, "reason": "disabled_for_task"},
+        "config": {"executed": False, "hit_count": 0, "reason": "disabled_for_task"},
     }
     if settings.bm25_source_code_lane_enabled and plan.source_code_lane_enabled:
         source_terms = build_lexical_expansion_terms(plan.vector_query) if plan.lexical_expansion_enabled else []
         lane_query = " ".join(source_terms) if source_terms else (plan.vector_query or " ".join(plan.bm25_queries))
-        merged_source: dict[str, ScoredChunk] = {}
-        for hit in search_bm25(
+        source_code_hits = run_category_bm25_lane(
             connection,
             lane_query,
             repo_id,
             scan_run_id,
             plan.source_code_candidate_limit,
             category="source_code",
-        ):
-            candidate = ScoredChunk(
-                chunk_id=hit.chunk_id,
-                file_path=hit.file_path,
-                entity_id=hit.entity_id,
-                entity=hit.entity,
-                entity_type=hit.entity_type,
-                category=hit.category,
-                chunk_kind=hit.chunk_kind,
-                line_start=hit.line_start,
-                line_end=hit.line_end,
-                score=hit.score,
-                source="bm25_source_code",
-                tokens_estimate=hit.tokens_estimate,
-                graph_distance=0,
-                reason=hit.reason,
-                content=hit.content,
-            )
-            existing = merged_source.get(candidate.chunk_id)
-            if existing is None or candidate.score > existing.score:
-                merged_source[candidate.chunk_id] = candidate
-        source_code_hits = sorted(
-            merged_source.values(),
-            key=lambda item: (-item.score, item.file_path, item.chunk_id),
-        )[: plan.source_code_candidate_limit]
+            source="bm25_source_code",
+        )
         lane_diagnostics.update(
             {
                 "source_code_query": lane_query,
                 "source_code_hit_count": len(source_code_hits),
+                "source_code": {
+                    "executed": True,
+                    "hit_count": len(source_code_hits),
+                    "limit": plan.source_code_candidate_limit,
+                    "query": lane_query,
+                },
             }
         )
+    elif not settings.bm25_source_code_lane_enabled:
+        lane_diagnostics["source_code"] = {"executed": False, "hit_count": 0, "reason": "disabled_by_settings"}
 
-    merged_hits = stable_merge_and_dedupe_hits(general_hits, source_code_hits, limit=top_k)
+    if settings.bm25_schema_lane_enabled and plan.schema_lane_enabled:
+        lane_query = plan.vector_query or " ".join(plan.bm25_queries)
+        schema_hits = run_category_bm25_lane(
+            connection,
+            lane_query,
+            repo_id,
+            scan_run_id,
+            plan.schema_candidate_limit,
+            category="schema",
+            source="bm25_schema",
+        )
+        lane_diagnostics.update(
+            {
+                "schema_query": lane_query,
+                "schema_hit_count": len(schema_hits),
+                "schema": {
+                    "executed": True,
+                    "hit_count": len(schema_hits),
+                    "limit": plan.schema_candidate_limit,
+                    "query": lane_query,
+                },
+            }
+        )
+    elif not settings.bm25_schema_lane_enabled:
+        lane_diagnostics["schema"] = {"executed": False, "hit_count": 0, "reason": "disabled_by_settings"}
+
+    if settings.bm25_config_lane_enabled and plan.config_lane_enabled:
+        lane_query = plan.vector_query or " ".join(plan.bm25_queries)
+        config_hits = run_category_bm25_lane(
+            connection,
+            lane_query,
+            repo_id,
+            scan_run_id,
+            plan.config_candidate_limit,
+            category="config",
+            source="bm25_config",
+        )
+        lane_diagnostics.update(
+            {
+                "config_query": lane_query,
+                "config_hit_count": len(config_hits),
+                "config": {
+                    "executed": True,
+                    "hit_count": len(config_hits),
+                    "limit": plan.config_candidate_limit,
+                    "query": lane_query,
+                },
+            }
+        )
+    elif not settings.bm25_config_lane_enabled:
+        lane_diagnostics["config"] = {"executed": False, "hit_count": 0, "reason": "disabled_by_settings"}
+
+    merged_hits = stable_merge_and_dedupe_hits(
+        general_hits,
+        source_code_hits,
+        extra_lane_hits=[schema_hits, config_hits],
+        limit=top_k,
+    )
     lane_diagnostics["merged_hit_count"] = len(merged_hits)
     return merged_hits, lane_diagnostics
+
+
+def run_category_bm25_lane(
+    connection: sqlite3.Connection,
+    query: str,
+    repo_id: str,
+    scan_run_id: str,
+    limit: int,
+    *,
+    category: str,
+    source: str,
+) -> list[ScoredChunk]:
+    """Run a category-filtered BM25 lane and return deduped candidates."""
+
+    merged: dict[str, ScoredChunk] = {}
+    for hit in search_bm25(connection, query, repo_id, scan_run_id, limit, category=category):
+        candidate = ScoredChunk(
+            chunk_id=hit.chunk_id,
+            file_path=hit.file_path,
+            entity_id=hit.entity_id,
+            entity=hit.entity,
+            entity_type=hit.entity_type,
+            category=hit.category,
+            chunk_kind=hit.chunk_kind,
+            line_start=hit.line_start,
+            line_end=hit.line_end,
+            score=hit.score,
+            source=source,
+            tokens_estimate=hit.tokens_estimate,
+            graph_distance=0,
+            reason=hit.reason,
+            content=hit.content,
+        )
+        existing = merged.get(candidate.chunk_id)
+        if existing is None or candidate.score > existing.score:
+            merged[candidate.chunk_id] = candidate
+    return sorted(merged.values(), key=lambda item: (-item.score, item.file_path, item.chunk_id))[:limit]
 
 
 def run_vector_recall(

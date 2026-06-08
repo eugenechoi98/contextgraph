@@ -301,3 +301,28 @@ The current array policy is intentionally simple:
 - continue nested object keys using paths such as `servers[].host`
 
 This keeps config retrieval understandable without exploding chunk count.
+
+## 2026-06-08: Database and configuration tasks use structured BM25 lanes
+
+Phase 4D.1 makes `database` and `configuration` real planner strategies.
+
+The retrieval change is deliberately narrow:
+
+- `database` can run a bounded `schema` BM25 candidate lane
+- `configuration` can run a bounded `config` BM25 candidate lane
+- the existing general BM25 lane stays in place
+- source-code lane behavior is preserved
+
+This gives SQL and config chunks a fair chance to enter the candidate pool without changing BM25 scoring, RRF, token budget, graph traversal, or `ContextPack`.
+
+## 2026-06-08: Structured eval stays separate from canonical golden eval
+
+The structured SQL/config fixture uses its own dataset:
+
+- `eval/fixtures/structured_golden.json`
+
+Reason:
+
+- the canonical golden dataset targets the canonical repo
+- the structured fixture is a standalone parser/retrieval smoke repo
+- mixing both in one default dataset would make eval runs depend on which repos happened to be indexed in the local DB

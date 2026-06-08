@@ -48,3 +48,11 @@
   - Sensitive config handling in this phase is key-name based:
     - markers include `password`, `secret`, `token`, `api_key`, `private_key`, `credential`
     - matching keys keep the key path but do not keep the raw value in entity or chunk content
+- 2026-06-08 Phase 4D.1 implementation notes:
+  - The planner now treats `database` and `configuration` as first-class task types.
+  - The structured candidate lanes are category-filtered BM25 lanes:
+    - `schema`
+    - `config`
+  - They are supplemental lanes only; the general BM25 lane still runs and original BM25 scores are not rewritten.
+  - Lane evidence is exposed in internal route diagnostics under `bm25_lanes`.
+  - Structured eval is kept in `eval/fixtures/structured_golden.json` instead of the canonical golden dataset so fixture cases do not depend on the canonical repo scan.

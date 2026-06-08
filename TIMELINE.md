@@ -36,3 +36,8 @@
 - 2026-06-08: Added minimal `sql_parser.py` and `config_parser.py`, covering `db_table`, `db_view`, `db_index`, and `config_key`
 - 2026-06-08: Added `tests/fixtures/sample_structured_repo`, new SQL/config/index tests, and safe config masking rules for sensitive keys
 - 2026-06-08: Passed structured fixture smoke, restored canonical repo with `parse_errors=0`, and updated full validation to `108 passed, 1 warning`
+- 2026-06-08: Committed Phase 4D checkpoint as `39509f1` and entered Phase 4D.1 for database/configuration task strategy closure
+- 2026-06-08: Added `database` and `configuration` task strategies, planner candidate lane metadata, and bounded `schema` / `config` BM25 supplemental lanes
+- 2026-06-08: Added `eval/fixtures/structured_golden.json` and `tests/test_structured_task_strategies.py` for structured planner, lane diagnostics, and sensitive value regression coverage
+- 2026-06-08: Passed structured fixture eval smoke with `4 active cases`, `failed_case_count=0`, then restored canonical repo with `parse_errors=0`
+- 2026-06-08: Updated full validation to `111 passed, 1 warning`
