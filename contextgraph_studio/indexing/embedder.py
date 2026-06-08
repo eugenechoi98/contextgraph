@@ -1,4 +1,4 @@
-"""Embedding provider 抽象与实现。"""
+"""Embedding provider abstractions and local adapters."""
 
 from __future__ import annotations
 
@@ -12,11 +12,11 @@ from contextgraph_studio.config import Settings
 
 
 class EmbeddingProviderError(RuntimeError):
-    """Embedding provider 相关错误。"""
+    """Embedding provider related errors."""
 
 
 class EmbeddingProvider(Protocol):
-    """统一 embedding provider 协议。"""
+    """Shared embedding provider protocol."""
 
     @property
     def provider_name(self) -> str: ...
@@ -27,7 +27,9 @@ class EmbeddingProvider(Protocol):
     @property
     def dimension(self) -> int: ...
 
-    def embed_texts(self, texts: list[str]) -> list[list[float]]: ...
+    def embed_documents(self, texts: list[str]) -> list[list[float]]: ...
+
+    def embed_queries(self, texts: list[str]) -> list[list[float]]: ...
 
 
 def validate_embedding_output(
@@ -35,7 +37,7 @@ def validate_embedding_output(
     vectors: list[list[float]],
     expected_dimension: int,
 ) -> list[list[float]]:
-    """校验 provider 输出数量与维度。"""
+    """Validate provider output count and dimension."""
 
     if expected_dimension <= 0:
         raise EmbeddingProviderError(f"Embedding dimension must be positive, got {expected_dimension}.")
@@ -58,7 +60,7 @@ def validate_embedding_output(
 
 
 class DeterministicEmbeddingProvider:
-    """仅用于测试与离线开发的稳定 embedding provider。"""
+    """Deterministic provider for tests and offline pipeline verification only."""
 
     def __init__(self, dimension: int, model_name: str = "deterministic-sha256") -> None:
         if dimension <= 0:
@@ -78,11 +80,14 @@ class DeterministicEmbeddingProvider:
     def dimension(self) -> int:
         return self._dimension
 
-    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
         vectors = [self._embed_one(text) for text in texts]
         return validate_embedding_output(texts, vectors, self.dimension)
+
+    def embed_queries(self, texts: list[str]) -> list[list[float]]:
+        return self.embed_documents(texts)
 
     def _embed_one(self, text: str) -> list[float]:
         if not text.strip():
@@ -109,13 +114,18 @@ class DeterministicEmbeddingProvider:
 
 
 class SentenceTransformerEmbeddingProvider:
-    """延迟加载 sentence-transformers 的本地模型适配器。"""
+    """Lazy sentence-transformers adapter with explicit query/document boundaries."""
 
     def __init__(
         self,
         model_name: str,
         dimension: int,
         batch_size: int,
+        *,
+        device: str | None = None,
+        cache_dir: str | None = None,
+        local_files_only: bool = True,
+        revision: str | None = None,
     ) -> None:
         if dimension <= 0:
             raise EmbeddingProviderError(f"Embedding dimension must be positive, got {dimension}.")
@@ -124,6 +134,10 @@ class SentenceTransformerEmbeddingProvider:
         self._model_name = model_name
         self._dimension = dimension
         self._batch_size = batch_size
+        self._device = device
+        self._cache_dir = cache_dir
+        self._local_files_only = local_files_only
+        self._revision = revision
         self._model = None
 
     @property
@@ -138,7 +152,14 @@ class SentenceTransformerEmbeddingProvider:
     def dimension(self) -> int:
         return self._dimension
 
-    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self._encode(texts)
+
+    def embed_queries(self, texts: list[str]) -> list[list[float]]:
+        # For nomic-embed-code the official model-card path uses prompt_name="query".
+        return self._encode(texts, prompt_name="query")
+
+    def _encode(self, texts: list[str], *, prompt_name: str | None = None) -> list[list[float]]:
         if not texts:
             return []
         if not all(isinstance(text, str) for text in texts):
@@ -147,29 +168,31 @@ class SentenceTransformerEmbeddingProvider:
         clean_texts = [text if text.strip() else " " for text in texts]
         try:
             model = self._get_model()
-            matrix = model.encode(
-                clean_texts,
-                batch_size=self._batch_size,
-                convert_to_numpy=True,
-                normalize_embeddings=True,
-                show_progress_bar=False,
-            )
-        except Exception as exc:  # pragma: no cover - 依赖与模型环境相关
+            encode_kwargs = {
+                "batch_size": self._batch_size,
+                "convert_to_numpy": True,
+                "normalize_embeddings": True,
+                "show_progress_bar": False,
+            }
+            if prompt_name is not None and self._supports_prompt(model, prompt_name):
+                matrix = model.encode(clean_texts, prompt_name=prompt_name, **encode_kwargs)
+            else:
+                matrix = model.encode(clean_texts, **encode_kwargs)
+        except EmbeddingProviderError:
+            raise
+        except Exception as exc:  # pragma: no cover - dependency/model environment specific
             raise EmbeddingProviderError(
                 f"Failed to load or run local embedding model '{self.model_name}'. "
-                "Install the optional local embeddings extra and ensure the model is available."
+                "Install the optional local embeddings extra, verify cache/device settings, "
+                "and ensure the model is available locally when no-download mode is enabled."
             ) from exc
 
         vectors = np.asarray(matrix, dtype=np.float32)
         if vectors.ndim == 1:
             vectors = vectors.reshape(1, -1)
-        return validate_embedding_output(
-            texts,
-            [row.tolist() for row in vectors],
-            self.dimension,
-        )
+        return validate_embedding_output(texts, [row.tolist() for row in vectors], self.dimension)
 
-    def _get_model(self):  # pragma: no cover - 依赖与模型环境相关
+    def _get_model(self):  # pragma: no cover - dependency/model environment specific
         if self._model is not None:
             return self._model
         try:
@@ -179,12 +202,24 @@ class SentenceTransformerEmbeddingProvider:
                 "sentence-transformers is not installed. "
                 "Install with `pip install -e .[local-embeddings]` to enable local embedding models."
             ) from exc
-        self._model = SentenceTransformer(self.model_name, trust_remote_code=True)
+        self._model = SentenceTransformer(
+            self.model_name,
+            trust_remote_code=True,
+            device=self._device,
+            cache_folder=self._cache_dir,
+            local_files_only=self._local_files_only,
+            revision=self._revision,
+        )
         return self._model
+
+    @staticmethod
+    def _supports_prompt(model: object, prompt_name: str) -> bool:
+        prompts = getattr(model, "prompts", None)
+        return isinstance(prompts, dict) and prompt_name in prompts
 
 
 def build_embedding_provider(settings: Settings) -> EmbeddingProvider:
-    """按配置创建 embedding provider。"""
+    """Build an embedding provider from settings."""
 
     provider_name = settings.embedding_provider.strip().lower()
     if provider_name == "deterministic":
@@ -197,6 +232,10 @@ def build_embedding_provider(settings: Settings) -> EmbeddingProvider:
             model_name=settings.embedding_model,
             dimension=settings.embedding_dimension,
             batch_size=settings.embedding_batch_size,
+            device=settings.embedding_device,
+            cache_dir=str(settings.embedding_cache_dir) if settings.embedding_cache_dir else None,
+            local_files_only=settings.embedding_local_files_only,
+            revision=settings.embedding_revision,
         )
     raise EmbeddingProviderError(
         f"Unsupported embedding provider '{settings.embedding_provider}'. "

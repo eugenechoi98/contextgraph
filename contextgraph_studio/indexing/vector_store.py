@@ -215,7 +215,7 @@ def sync_embeddings_for_scan(
     batch_size = settings.embedding_batch_size
     for start in range(0, len(hashes), batch_size):
         batch_hashes = hashes[start : start + batch_size]
-        vectors = provider.embed_texts([pending_content[item] for item in batch_hashes])
+        vectors = provider.embed_documents([pending_content[item] for item in batch_hashes])
         for content_hash, vector in zip(batch_hashes, vectors, strict=True):
             blob = serialize_embedding(vector, provider.dimension)
             for row in pending_by_hash[content_hash]:

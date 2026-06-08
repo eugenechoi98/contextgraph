@@ -40,15 +40,29 @@ python -m venv .venv
 
 ## 当前验证基线
 
-- `pytest tests` -> `77 passed`
+- `pytest tests` -> `85 passed, 1 warning`
 - `cgstudio index .` -> `parse_errors = 0`
 - `cgstudio retrieve ...` -> `retrieval_strategy = ["bm25", "graph"]`
 - `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
 
+## Real Embedding Smoke Guardrails
+
+- Use the project venv Python: `.\.venv\Scripts\python.exe`
+- Keep model cache outside the repo, for example:
+  - `D:\contextgraph-model-cache`
+- When a real sentence-transformer smoke needs downloads on Windows, also redirect temp space off the system drive:
+  - `TEMP`
+  - `TMP`
+  - `HF_HOME`
+  - `SENTENCE_TRANSFORMERS_HOME`
+- Do not write model cache, temp artifacts, or reports into Git-tracked paths.
+- Back up `D:\contextgraph-studio\.data\contextgraph.db` before any canonical embedding rebuild.
+- If `nomic-ai/nomic-embed-code` is not safely runnable locally, use `sentence-transformers/all-MiniLM-L6-v2` only as a lightweight semantic fallback baseline and record that scope explicitly in eval output.
+
 ## 注意事项
 
-- deterministic embedding 只用于离线开发和测试
-- `vector_quality_valid=false` 是预期行为
+- deterministic embedding only validates the pipeline and keeps `vector_quality_valid=false`
+- the current real semantic fallback baseline records `vector_quality_valid=true` with scope `lightweight semantic fallback; not code-specialized`
 - `eval/fixtures` 与 `eval/reports` 不会被索引
 - `cgstudio mcp` 的协议可用性以 MCP stdio integration tests 为准
 - `C:\Users\Administrator.DESKTOP-5G2BKSD\Documents\contextgraph` 仅保留为迁移来源快照，不再运行测试、index、eval、serve 或 mcp

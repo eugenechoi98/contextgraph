@@ -9,6 +9,8 @@ from contextgraph_studio.db import connect, init_db
 from contextgraph_studio.indexing.embedder import (
     DeterministicEmbeddingProvider,
     EmbeddingProviderError,
+    SentenceTransformerEmbeddingProvider,
+    build_embedding_provider,
     validate_embedding_output,
 )
 from contextgraph_studio.indexing.vector_store import (
@@ -63,9 +65,9 @@ def seed_chunk(settings: Settings) -> None:
 
 def test_deterministic_provider_is_stable() -> None:
     provider = DeterministicEmbeddingProvider(dimension=8)
-    first = provider.embed_texts(["verify token"])
-    second = provider.embed_texts(["verify token"])
-    third = provider.embed_texts(["issue session"])
+    first = provider.embed_documents(["verify token"])
+    second = provider.embed_queries(["verify token"])
+    third = provider.embed_documents(["issue session"])
     assert first == second
     assert first != third
     assert len(first[0]) == 8
@@ -73,8 +75,8 @@ def test_deterministic_provider_is_stable() -> None:
 
 def test_deterministic_provider_handles_empty_inputs() -> None:
     provider = DeterministicEmbeddingProvider(dimension=4)
-    assert provider.embed_texts([]) == []
-    assert provider.embed_texts([""])[0] == [0.0, 0.0, 0.0, 0.0]
+    assert provider.embed_documents([]) == []
+    assert provider.embed_queries([""])[0] == [0.0, 0.0, 0.0, 0.0]
 
 
 def test_validate_embedding_output_rejects_count_and_dimension_mismatch() -> None:
@@ -124,3 +126,112 @@ def test_embedding_blob_rejects_invalid_dimensions() -> None:
         serialize_embedding([1.0], expected_dim=2)
     with pytest.raises(ValueError):
         deserialize_embedding(b"\x00", expected_dim=1)
+
+
+def test_build_embedding_provider_passes_sentence_transformer_options(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / ".data",
+        database_path=tmp_path / ".data" / "contextgraph.db",
+        embedding_provider="sentence-transformer",
+        embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+        embedding_dimension=384,
+        embedding_batch_size=4,
+        embedding_device="cpu",
+        embedding_cache_dir=tmp_path / "cache",
+        embedding_local_files_only=True,
+        embedding_revision="main",
+    )
+
+    provider = build_embedding_provider(settings)
+
+    assert isinstance(provider, SentenceTransformerEmbeddingProvider)
+    assert provider.model_name == "sentence-transformers/all-MiniLM-L6-v2"
+    assert provider.dimension == 384
+
+
+def test_sentence_transformer_provider_uses_query_prompt_and_cache_options(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str | None, list[str]]] = []
+    init_kwargs: dict[str, object] = {}
+
+    class FakeModel:
+        prompts = {"query": "query: "}
+
+        def encode(self, texts, **kwargs):  # type: ignore[no-untyped-def]
+            calls.append((kwargs.get("prompt_name"), list(texts)))
+            return np.ones((len(texts), 3), dtype=np.float32)
+
+    class FakeSentenceTransformer:
+        def __init__(self, model_name, **kwargs):  # type: ignore[no-untyped-def]
+            init_kwargs["model_name"] = model_name
+            init_kwargs.update(kwargs)
+            self.prompts = {"query": "query: "}
+
+        def encode(self, texts, **kwargs):  # type: ignore[no-untyped-def]
+            return FakeModel().encode(texts, **kwargs)
+
+    import sys
+    import types
+
+    fake_module = types.SimpleNamespace(SentenceTransformer=FakeSentenceTransformer)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_module)
+
+    provider = SentenceTransformerEmbeddingProvider(
+        model_name="nomic-ai/nomic-embed-code",
+        dimension=3,
+        batch_size=2,
+        device="cpu",
+        cache_dir="D:/contextgraph-model-cache",
+        local_files_only=True,
+        revision="main",
+    )
+
+    provider.embed_queries(["query text"])
+    provider.embed_documents(["def chunk_markdown(): pass"])
+
+    assert calls == [
+        ("query", ["query text"]),
+        (None, ["def chunk_markdown(): pass"]),
+    ]
+    assert init_kwargs["model_name"] == "nomic-ai/nomic-embed-code"
+    assert init_kwargs["device"] == "cpu"
+    assert init_kwargs["cache_folder"] == "D:/contextgraph-model-cache"
+    assert init_kwargs["local_files_only"] is True
+    assert init_kwargs["revision"] == "main"
+
+
+def test_sentence_transformer_provider_skips_query_prompt_when_model_has_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str | None, list[str]]] = []
+
+    class FakeModel:
+        prompts = {}
+
+        def encode(self, texts, **kwargs):  # type: ignore[no-untyped-def]
+            calls.append((kwargs.get("prompt_name"), list(texts)))
+            return np.ones((len(texts), 3), dtype=np.float32)
+
+    class FakeSentenceTransformer:
+        def __init__(self, model_name, **kwargs):  # type: ignore[no-untyped-def]
+            self._model = FakeModel()
+
+        def encode(self, texts, **kwargs):  # type: ignore[no-untyped-def]
+            return self._model.encode(texts, **kwargs)
+
+        @property
+        def prompts(self):  # type: ignore[no-untyped-def]
+            return self._model.prompts
+
+    import sys
+    import types
+
+    fake_module = types.SimpleNamespace(SentenceTransformer=FakeSentenceTransformer)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_module)
+
+    provider = SentenceTransformerEmbeddingProvider(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        dimension=3,
+        batch_size=2,
+    )
+
+    provider.embed_queries(["query text"])
+
+    assert calls == [(None, ["query text"])]

@@ -57,3 +57,16 @@
 - `bm25_graph` improves `MRR` over `bm25_only` from `0.7538` to `0.8179` while `Recall@5` stays flat at `0.8077`, so graph currently looks more useful for ranking than for raw recall on this repo.
 - `graph_expectation` is diagnostic only; it does not change strict retrieval metrics or `ContextPack` schema.
 - `vector_quality_valid` remains `false`.
+
+## Phase 4B.4 Note
+
+- Local `nomic-ai/nomic-embed-code` smoke was deferred as unsafe on this workstation because the active environment has no CUDA device, the visible GPU budget is only `2 GB`, and the phase required a controlled D-drive cache budget.
+- The embedding adapter now separates query encoding from document/code-chunk encoding.
+- Query-side encoding uses query semantics only when the loaded sentence-transformer model actually exposes a `query` prompt.
+- Indexed chunks continue to use document/code encoding without forcing the query prompt.
+- Real semantic fallback smoke succeeded with `sentence-transformers/all-MiniLM-L6-v2` on `cpu` using repository-external cache at `D:\contextgraph-model-cache`.
+- Canonical DB was backed up before rebuild, then the canonical repo was re-indexed with `635` stored embeddings under the fallback model.
+- Latest full validation is now `85 passed, 1 warning`.
+- Latest full 13-case eval under the fallback model still has `failed_case_count=0`.
+- `vector_quality_valid=true` is now allowed for this run, but the scope is explicitly `lightweight semantic fallback; not code-specialized`.
+- `bm25_vector` now improves over `bm25_only` on both `MRR` and `Recall@5`, so vector is no longer only a pipeline check in this configuration.

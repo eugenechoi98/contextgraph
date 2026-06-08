@@ -29,9 +29,12 @@ class CountingProvider(DeterministicEmbeddingProvider):
         super().__init__(dimension=dimension, model_name=model_name)
         self.total_texts = 0
 
-    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
         self.total_texts += len(texts)
-        return super().embed_texts(texts)
+        return super().embed_documents(texts)
+
+    def embed_queries(self, texts: list[str]) -> list[list[float]]:
+        return super().embed_queries(texts)
 
     def reset(self) -> None:
         self.total_texts = 0

@@ -205,8 +205,11 @@ class EvalRunResult(BaseModel):
     draft_cases: int
     embedding_provider: str
     embedding_model: str
+    embedding_device: str | None = None
+    model_smoke_status: str | None = None
     vector_quality_valid: bool
     vector_quality_note: str
+    vector_quality_scope: str | None = None
     configs: list[ConfigEvalResult]
     json_report_path: str
     markdown_report_path: str

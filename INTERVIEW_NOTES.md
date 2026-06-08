@@ -32,3 +32,11 @@
 可以这样说：
 
 > 这轮证据已经说明问题先发生在候选召回层，而不是融合层。RRF 的职责是整合已经召回到的候选，不负责把完全没进场的代码文件凭空变出来。所以更小、更稳的做法，是保留原始 BM25 lane，再补一个受控的 source-code lane，把相关代码先送进候选池，后面的 graph、RRF 和 token budget 都先不动。
+## 2026-06-08 - 为什么这轮不硬跑 nomic，而是先建立 fallback semantic baseline
+可以这样说：
+
+> 这轮目标不是“无论代价都把指定模型跑起来”，而是先确认 Vector 到底有没有真实语义信号。如果本机只有 CPU、CUDA 不可用、显存预算只有 2GB，而且还要保护 canonical DB 和 D 盘空间，那直接拉一个 7B 模型做 smoke 风险明显偏高。更稳的工程做法，是先用受控缓存目录和轻量真实模型把语义链路验证起来，再把结论明确标注为 fallback baseline，而不是把一次不安全的实验包装成进展。
+## 2026-06-08 - 为什么 adapter 一定要分 query encoding 和 document encoding
+可以这样说：
+
+> embedding 适配层最容易犯的错，是为了图省事把 query 和 code chunk 走成同一条编码路径。但像 `nomic-ai/nomic-embed-code` 这种模型，官方用法本来就区分 query prompt 和 code/document 编码。如果索引时也硬套 `prompt_name="query"`，等于把数据分布自己改坏了。工程上更稳的方式，是把职责在接口层拆开，让 indexer 只管 document 侧，retriever 只管 query 侧，fallback 模型再按能力选择是否真正支持 query prompt。

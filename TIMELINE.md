@@ -17,3 +17,5 @@
 - 2026-06-08: `chunking_001` 从 critical miss 提升为 critical hit，但 graph 对该 case 仍未扩展出有效命中
 - 2026-06-08: Completed Phase 4B.2 graph root-cause audit, added `tests/test_graph_diagnostics.py`, and narrowed `chunking_001` graph failure from generic `empty_traversal` to diagnosed `edge_type_filtered`
 - 2026-06-08: Completed Phase 4B.3 dataset characterization pass, added `graph_expectation`, expanded eval reporting with graph participation summaries, and documented graph value findings in `eval/analysis/graph_value_characterization.md`
+- 2026-06-08: Completed Phase 4B.4 Stage A hardware/dependency gate, deferred unsafe local `nomic-ai/nomic-embed-code` smoke, and switched to a controlled real semantic fallback smoke with `sentence-transformers/all-MiniLM-L6-v2`
+- 2026-06-08: Updated the local embedding adapter to separate query/document encoding, added no-download and metadata coverage, rebuilt canonical fallback embeddings, and ran a full 13-case eval with `vector_quality_valid=true` scoped to a lightweight semantic fallback baseline

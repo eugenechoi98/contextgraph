@@ -105,3 +105,39 @@ That means the next decision should not start from "force graph to help `chunkin
 - graph also participates in several `none` cases, so the open product question is selectivity, not mere participation
 
 Therefore this phase stops at characterization and does not change BM25, graph traversal, edge types, RRF, token budget, or graph seed policy.
+## 2026-06-08: Defer local nomic smoke when hardware safety is weak
+
+Phase 4B.4 checks real semantic embeddings, but it does not authorize unsafe large-model downloads just to satisfy a preferred model name.
+
+- `nomic-ai/nomic-embed-code` remains the intended code-specialized target.
+- The local smoke is deferred when disk, RAM, GPU, or active runtime support are not comfortably safe for a `7B` model.
+- In that case we prefer a repository-external-cache fallback smoke over risky local model churn.
+
+This keeps the canonical workspace clean and avoids damaging the canonical DB or developer machine state for a non-essential experiment.
+## 2026-06-08: Separate query and document encoding in the adapter
+
+Official model usage for `nomic-ai/nomic-embed-code` distinguishes query encoding from code/document encoding. The adapter therefore now exposes separate methods:
+
+- `embed_queries(...)`
+- `embed_documents(...)`
+
+Indexing only calls document encoding, while vector retrieval only calls query encoding.
+
+The adapter only applies `prompt_name="query"` when the loaded model actually declares that prompt. This keeps the code compatible with fallback sentence-transformer models that do not expose Nomic-specific prompts.
+## 2026-06-08: Lightweight semantic fallback can count as vector-quality-valid, but only with scoped wording
+
+Deterministic embeddings still mean `vector_quality_valid=false`.
+
+For Phase 4B.4, `sentence-transformers/all-MiniLM-L6-v2` is allowed to set `vector_quality_valid=true` only when:
+
+- a real model was loaded successfully
+- canonical embeddings were rebuilt successfully
+- the full eval completed successfully
+
+But the run must also record:
+
+- `model_smoke_status`
+- `embedding_device`
+- `vector_quality_scope = "lightweight semantic fallback; not code-specialized"`
+
+This allows the team to claim a real semantic baseline without overstating it as final code-retrieval quality.

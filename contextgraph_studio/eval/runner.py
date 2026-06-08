@@ -46,7 +46,7 @@ def build_eval_runtime_settings(base_settings: Settings, config: EvalConfig) -> 
     )
 
 
-def evaluate_vector_quality(settings: Settings) -> tuple[bool, str]:
+def evaluate_vector_quality(settings: Settings) -> tuple[bool, str, str | None]:
     """标记当前 embedding provider 的质量结论是否有效。"""
 
     provider = settings.embedding_provider.strip().lower()
@@ -55,15 +55,24 @@ def evaluate_vector_quality(settings: Settings) -> tuple[bool, str]:
         return (
             False,
             "Deterministic embeddings validate pipeline correctness only; they do not measure semantic retrieval quality.",
+            None,
         )
     if provider in {"nomic", "local_nomic", "sentence_transformer", "sentence-transformer"} and "nomic" in model.lower():
         return (
-            False,
-            "A real local embedding provider is configured, but this phase does not certify semantic vector quality until dedicated local smoke and reindex validation are completed.",
+            True,
+            "A code-specialized local embedding model is active, and this eval run is eligible to count toward semantic vector quality baselining.",
+            "code-specialized local embedding baseline",
+        )
+    if provider in {"sentence_transformer", "sentence-transformer"} and "all-minilm-l6-v2" in model.lower():
+        return (
+            True,
+            "A lightweight real semantic embedding fallback is active for this eval run.",
+            "lightweight semantic fallback; not code-specialized",
         )
     return (
         False,
         "The current embedding provider is not certified for semantic quality conclusions in this phase.",
+        None,
     )
 
 
@@ -90,7 +99,7 @@ def run_eval(
         raise ValueError("No active cases selected for evaluation.")
 
     eval_configs = resolve_eval_configs(config_names)
-    vector_quality_valid, vector_quality_note = evaluate_vector_quality(settings)
+    vector_quality_valid, vector_quality_note, vector_quality_scope = evaluate_vector_quality(settings)
 
     with connect(settings.database_path) as connection:
         _, scan_run_id = resolve_repo_and_scan_run(connection, repo_id)
@@ -174,8 +183,11 @@ def run_eval(
         draft_cases=len(draft_cases),
         embedding_provider=settings.embedding_provider,
         embedding_model=settings.embedding_model,
+        embedding_device=settings.embedding_device,
+        model_smoke_status=settings.embedding_smoke_status,
         vector_quality_valid=vector_quality_valid,
         vector_quality_note=vector_quality_note,
+        vector_quality_scope=vector_quality_scope,
         configs=config_results,
         json_report_path=str(json_report_path),
         markdown_report_path=str(markdown_report_path),
@@ -232,7 +244,10 @@ def render_markdown_report(result: EvalRunResult) -> str:
         f"- draft_cases: `{result.draft_cases}`",
         f"- embedding_provider: `{result.embedding_provider}`",
         f"- embedding_model: `{result.embedding_model}`",
+        f"- embedding_device: `{result.embedding_device}`",
+        f"- model_smoke_status: `{result.model_smoke_status}`",
         f"- vector_quality_valid: `{str(result.vector_quality_valid).lower()}`",
+        f"- vector_quality_scope: `{result.vector_quality_scope}`",
         "",
         "## Ablation Summary",
         "",

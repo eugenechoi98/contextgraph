@@ -5,7 +5,7 @@ import pytest
 
 from contextgraph_studio.config import Settings
 from contextgraph_studio.db import connect, init_db
-from contextgraph_studio.eval.runner import load_golden_dataset, run_eval
+from contextgraph_studio.eval.runner import evaluate_vector_quality, load_golden_dataset, run_eval
 from contextgraph_studio.services.indexer import index_repository
 
 
@@ -142,6 +142,9 @@ def test_run_eval_skips_draft_cases_and_records_failures(tmp_path: Path) -> None
     assert result.draft_cases == 1
     assert result.vector_quality_valid is False
     assert "Deterministic embeddings" in result.vector_quality_note
+    assert result.embedding_device is None
+    assert result.model_smoke_status is None
+    assert result.vector_quality_scope is None
     assert Path(result.json_report_path).exists()
     assert Path(result.markdown_report_path).exists()
     assert Path(result.latest_json_report_path).exists()
@@ -178,6 +181,46 @@ def test_run_eval_skips_draft_cases_and_records_failures(tmp_path: Path) -> None
     assert row is not None
     stored = json.loads(row["results_json"])
     assert stored["eval_run_id"] == result.eval_run_id
+    assert stored["embedding_device"] is None
+    assert stored["model_smoke_status"] is None
+    assert stored["vector_quality_scope"] is None
+
+    markdown_report = Path(result.markdown_report_path).read_text(encoding="utf-8")
+    assert "- embedding_device: `None`" in markdown_report
+    assert "- model_smoke_status: `None`" in markdown_report
+    assert "- vector_quality_scope: `None`" in markdown_report
+
+
+def test_evaluate_vector_quality_marks_real_semantic_fallback(tmp_path: Path) -> None:
+    settings = make_settings(
+        tmp_path,
+        embedding_provider="sentence-transformer",
+        embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+        embedding_device="cpu",
+        embedding_smoke_status="fallback_smoke_passed",
+    )
+
+    valid, note, scope = evaluate_vector_quality(settings)
+
+    assert valid is True
+    assert "lightweight real semantic embedding fallback" in note
+    assert scope == "lightweight semantic fallback; not code-specialized"
+
+
+def test_evaluate_vector_quality_marks_nomic_as_code_specialized(tmp_path: Path) -> None:
+    settings = make_settings(
+        tmp_path,
+        embedding_provider="sentence-transformer",
+        embedding_model="nomic-ai/nomic-embed-code",
+        embedding_device="cpu",
+        embedding_smoke_status="nomic_smoke_passed",
+    )
+
+    valid, note, scope = evaluate_vector_quality(settings)
+
+    assert valid is True
+    assert "code-specialized local embedding model" in note
+    assert scope == "code-specialized local embedding baseline"
 
 
 def test_init_db_creates_eval_runs_table(tmp_path: Path) -> None:

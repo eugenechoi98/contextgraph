@@ -67,6 +67,26 @@ class Settings(BaseSettings):
         ge=1,
         validation_alias=AliasChoices("EMBEDDING_BATCH_SIZE", "CONTEXTGRAPH_EMBEDDING_BATCH_SIZE"),
     )
+    embedding_device: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("EMBEDDING_DEVICE", "CONTEXTGRAPH_EMBEDDING_DEVICE"),
+    )
+    embedding_cache_dir: Path | None = Field(
+        default=None,
+        validation_alias=AliasChoices("EMBEDDING_CACHE_DIR", "CONTEXTGRAPH_EMBEDDING_CACHE_DIR"),
+    )
+    embedding_local_files_only: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("EMBEDDING_LOCAL_FILES_ONLY", "CONTEXTGRAPH_EMBEDDING_LOCAL_FILES_ONLY"),
+    )
+    embedding_revision: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("EMBEDDING_REVISION", "CONTEXTGRAPH_EMBEDDING_REVISION"),
+    )
+    embedding_smoke_status: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("EMBEDDING_SMOKE_STATUS", "CONTEXTGRAPH_EMBEDDING_SMOKE_STATUS"),
+    )
     hybrid_vector_enabled: bool = Field(
         default=False,
         validation_alias=AliasChoices("HYBRID_VECTOR_ENABLED", "CONTEXTGRAPH_HYBRID_VECTOR_ENABLED"),

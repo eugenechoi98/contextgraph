@@ -67,7 +67,7 @@ def search_similar_chunks(
 
     init_db(settings)
     provider = build_embedding_provider(settings)
-    query_vector = np.asarray(provider.embed_texts([query])[0], dtype=np.float32)
+    query_vector = np.asarray(provider.embed_queries([query])[0], dtype=np.float32)
     model_fingerprint = build_embedding_fingerprint(provider.provider_name, provider.model_name)
 
     with connect(settings.database_path) as connection:
