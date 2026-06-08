@@ -140,6 +140,9 @@ class IndexingStats:
     entities: int = 0
     relations: int = 0
     parse_errors: int = 0
+    parse_errors_current_scan: int = 0
+    parse_errors_reused: int = 0
+    parse_errors_total_snapshot: int = 0
     reused_files: int = 0
     changed_files: int = 0
     new_files: int = 0
@@ -153,3 +156,5 @@ class IndexingStats:
     embedding_reused_count: int = 0
     embedding_generated_count: int = 0
     parse_error_messages: list[str] = field(default_factory=list)
+    parse_error_messages_current_scan: list[str] = field(default_factory=list)
+    parse_error_messages_reused: list[str] = field(default_factory=list)

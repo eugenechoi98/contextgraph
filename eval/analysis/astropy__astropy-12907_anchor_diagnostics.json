@@ -1,0 +1,574 @@
+{
+  "normalized_query": "Modeling OR s OR separability_matrix OR does OR not OR compute OR separability OR correctly OR for OR nested OR CompoundModels OR Consider OR the OR following OR model OR python OR from OR astropy.modeling OR import OR models OR as OR m OR astropy.modeling.separable OR cm OR m.Linear1D OR 10 OR 5 OR It OR matrix OR you OR might OR expect OR is OR a OR diagonal OR array OR True OR False OR If OR I OR make OR more OR complex OR m.Pix2Sky_TAN OR The OR output OR again OR expected OR outputs OR and OR inputs OR to OR linear OR are OR separable OR independent OR of OR each OR other. OR however OR nest OR these OR compound OR Suddenly OR no OR longer OR This OR feels OR like OR bug OR me OR but OR be OR missing OR something",
+  "fts_error": "OperationalError('fts5: syntax error near \".\"')",
+  "anchors": {
+    "separability_matrix": {
+      "hit_count": 6,
+      "target_rows": [
+        {
+          "rank": 1,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable.separability_matrix",
+          "score": 13.377572407868438,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 66,
+          "line_end": 102
+        },
+        {
+          "rank": 3,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable.is_separable",
+          "score": 8.222554955143503,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 27,
+          "line_end": 63
+        },
+        {
+          "rank": 4,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "file_summary",
+          "entity": "astropy/modeling/separable.py",
+          "score": 7.984973030202992,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 1,
+          "line_end": 317
+        },
+        {
+          "rank": 5,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._separable",
+          "score": 7.263406505815231,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 290,
+          "line_end": 311
+        }
+      ],
+      "top5": [
+        {
+          "rank": 1,
+          "file_path": "astropy/modeling/separable.py",
+          "entity": "astropy.modeling.separable.separability_matrix",
+          "score": 13.377572407868438,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 2,
+          "file_path": "astropy/modeling/core.py",
+          "entity": "astropy.modeling.core.Model._calculate_separability_matrix",
+          "score": 12.667877031697538,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 3,
+          "file_path": "astropy/modeling/separable.py",
+          "entity": "astropy.modeling.separable.is_separable",
+          "score": 8.222554955143503,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 4,
+          "file_path": "astropy/modeling/separable.py",
+          "entity": "astropy/modeling/separable.py",
+          "score": 7.984973030202992,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 5,
+          "file_path": "astropy/modeling/separable.py",
+          "entity": "astropy.modeling.separable._separable",
+          "score": 7.263406505815231,
+          "reason": "BM25 match from latest successful scan"
+        }
+      ]
+    },
+    "CompoundModel": {
+      "hit_count": 83,
+      "target_rows": [
+        {
+          "rank": 55,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "file_summary",
+          "entity": "astropy/modeling/separable.py",
+          "score": 5.969179135410152,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 1,
+          "line_end": 317
+        },
+        {
+          "rank": 61,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._separable",
+          "score": 5.4297709463162,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 290,
+          "line_end": 311
+        }
+      ],
+      "top5": [
+        {
+          "rank": 1,
+          "file_path": "astropy/modeling/core.py",
+          "entity": "astropy.modeling.core.CompoundModel",
+          "score": 11.007569113551419,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 2,
+          "file_path": "astropy/modeling/core.py",
+          "entity": "astropy.modeling.core.CompoundModel.traverse_postorder",
+          "score": 9.48573282830243,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 3,
+          "file_path": "astropy/modeling/core.py",
+          "entity": "astropy.modeling.core.CompoundModel.inputs_map",
+          "score": 9.46727468575473,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 4,
+          "file_path": "astropy/modeling/core.py",
+          "entity": "astropy.modeling.core.CompoundModel.outputs_map",
+          "score": 9.400276233735536,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 5,
+          "file_path": "astropy/modeling/core.py",
+          "entity": "astropy.modeling.core.CompoundModel._recursive_lookup",
+          "score": 9.272847366679267,
+          "reason": "BM25 match from latest successful scan"
+        }
+      ]
+    },
+    "_separable": {
+      "hit_count": 100,
+      "target_rows": [
+        {
+          "rank": 1,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "file_summary",
+          "entity": "astropy/modeling/separable.py",
+          "score": 8.443303632155816,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 1,
+          "line_end": 317
+        },
+        {
+          "rank": 2,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable.is_separable",
+          "score": 8.273704803740651,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 27,
+          "line_end": 63
+        },
+        {
+          "rank": 5,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._separable",
+          "score": 7.994436418364978,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 290,
+          "line_end": 311
+        },
+        {
+          "rank": 6,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable.separability_matrix",
+          "score": 7.9438703589316555,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 66,
+          "line_end": 102
+        },
+        {
+          "rank": 26,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._compute_n_outputs",
+          "score": 5.726739500855015,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 105,
+          "line_end": 127
+        },
+        {
+          "rank": 32,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._cstack",
+          "score": 5.554677851344278,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 219,
+          "line_end": 247
+        },
+        {
+          "rank": 44,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._coord_matrix",
+          "score": 5.3165132184588,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 171,
+          "line_end": 216
+        },
+        {
+          "rank": 45,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._cdot",
+          "score": 5.308198769801361,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 250,
+          "line_end": 287
+        },
+        {
+          "rank": 57,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._arith_oper",
+          "score": 4.706269893428477,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 130,
+          "line_end": 168
+        }
+      ],
+      "top5": [
+        {
+          "rank": 1,
+          "file_path": "astropy/modeling/separable.py",
+          "entity": "astropy/modeling/separable.py",
+          "score": 8.443303632155816,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 2,
+          "file_path": "astropy/modeling/separable.py",
+          "entity": "astropy.modeling.separable.is_separable",
+          "score": 8.273704803740651,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 3,
+          "file_path": "astropy/visualization/wcsaxes/coordinate_helpers.py",
+          "entity": "astropy.visualization.wcsaxes.coordinate_helpers.CoordinateHelper.set_separator",
+          "score": 8.152142218446754,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 4,
+          "file_path": "astropy/modeling/core.py",
+          "entity": "astropy.modeling.core.Model.separable",
+          "score": 8.1048971987768,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 5,
+          "file_path": "astropy/modeling/separable.py",
+          "entity": "astropy.modeling.separable._separable",
+          "score": 7.994436418364978,
+          "reason": "BM25 match from latest successful scan"
+        }
+      ]
+    },
+    "_compute_n_outputs": {
+      "hit_count": 3,
+      "target_rows": [
+        {
+          "rank": 1,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._compute_n_outputs",
+          "score": 12.037194730538538,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 105,
+          "line_end": 127
+        },
+        {
+          "rank": 2,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "file_summary",
+          "entity": "astropy/modeling/separable.py",
+          "score": 9.651084448040317,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 1,
+          "line_end": 317
+        },
+        {
+          "rank": 3,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._cstack",
+          "score": 8.432588151702197,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 219,
+          "line_end": 247
+        }
+      ],
+      "top5": [
+        {
+          "rank": 1,
+          "file_path": "astropy/modeling/separable.py",
+          "entity": "astropy.modeling.separable._compute_n_outputs",
+          "score": 12.037194730538538,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 2,
+          "file_path": "astropy/modeling/separable.py",
+          "entity": "astropy/modeling/separable.py",
+          "score": 9.651084448040317,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 3,
+          "file_path": "astropy/modeling/separable.py",
+          "entity": "astropy.modeling.separable._cstack",
+          "score": 8.432588151702197,
+          "reason": "BM25 match from latest successful scan"
+        }
+      ]
+    },
+    "separability": {
+      "hit_count": 100,
+      "target_rows": [
+        {
+          "rank": 1,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "file_summary",
+          "entity": "astropy/modeling/separable.py",
+          "score": 8.443303632155816,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 1,
+          "line_end": 317
+        },
+        {
+          "rank": 2,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable.is_separable",
+          "score": 8.273704803740651,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 27,
+          "line_end": 63
+        },
+        {
+          "rank": 5,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._separable",
+          "score": 7.994436418364978,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 290,
+          "line_end": 311
+        },
+        {
+          "rank": 6,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable.separability_matrix",
+          "score": 7.9438703589316555,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 66,
+          "line_end": 102
+        },
+        {
+          "rank": 26,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._compute_n_outputs",
+          "score": 5.726739500855015,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 105,
+          "line_end": 127
+        },
+        {
+          "rank": 32,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._cstack",
+          "score": 5.554677851344278,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 219,
+          "line_end": 247
+        },
+        {
+          "rank": 44,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._coord_matrix",
+          "score": 5.3165132184588,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 171,
+          "line_end": 216
+        },
+        {
+          "rank": 45,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._cdot",
+          "score": 5.308198769801361,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 250,
+          "line_end": 287
+        },
+        {
+          "rank": 57,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._arith_oper",
+          "score": 4.706269893428477,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 130,
+          "line_end": 168
+        }
+      ],
+      "top5": [
+        {
+          "rank": 1,
+          "file_path": "astropy/modeling/separable.py",
+          "entity": "astropy/modeling/separable.py",
+          "score": 8.443303632155816,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 2,
+          "file_path": "astropy/modeling/separable.py",
+          "entity": "astropy.modeling.separable.is_separable",
+          "score": 8.273704803740651,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 3,
+          "file_path": "astropy/visualization/wcsaxes/coordinate_helpers.py",
+          "entity": "astropy.visualization.wcsaxes.coordinate_helpers.CoordinateHelper.set_separator",
+          "score": 8.152142218446754,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 4,
+          "file_path": "astropy/modeling/core.py",
+          "entity": "astropy.modeling.core.Model.separable",
+          "score": 8.1048971987768,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 5,
+          "file_path": "astropy/modeling/separable.py",
+          "entity": "astropy.modeling.separable._separable",
+          "score": 7.994436418364978,
+          "reason": "BM25 match from latest successful scan"
+        }
+      ]
+    },
+    "compound models": {
+      "hit_count": 100,
+      "target_rows": [
+        {
+          "rank": 21,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._compute_n_outputs",
+          "score": 8.62167871269812,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 105,
+          "line_end": 127
+        },
+        {
+          "rank": 22,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._separable",
+          "score": 8.359611466197695,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 290,
+          "line_end": 311
+        },
+        {
+          "rank": 31,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable._coord_matrix",
+          "score": 7.268261974940276,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 171,
+          "line_end": 216
+        },
+        {
+          "rank": 35,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable.is_separable",
+          "score": 7.032855854773517,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 27,
+          "line_end": 63
+        },
+        {
+          "rank": 36,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "symbol",
+          "entity": "astropy.modeling.separable.separability_matrix",
+          "score": 6.8852181622351445,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 66,
+          "line_end": 102
+        },
+        {
+          "rank": 84,
+          "file_path": "astropy/modeling/separable.py",
+          "chunk_kind": "file_summary",
+          "entity": "astropy/modeling/separable.py",
+          "score": 3.8046443491232647,
+          "reason": "BM25 match from latest successful scan",
+          "line_start": 1,
+          "line_end": 317
+        }
+      ],
+      "top5": [
+        {
+          "rank": 1,
+          "file_path": "astropy/io/misc/asdf/tags/transform/compound.py",
+          "entity": "astropy/io/misc/asdf/tags/transform/compound.py",
+          "score": 12.730033590146236,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 2,
+          "file_path": "astropy/io/misc/asdf/tags/transform/compound.py",
+          "entity": "astropy.io.misc.asdf.tags.transform.compound.RemapAxesType.to_tree_transform",
+          "score": 11.413480196281558,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 3,
+          "file_path": "astropy/modeling/core.py",
+          "entity": "astropy.modeling.core.bind_compound_bounding_box",
+          "score": 11.191048710526434,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 4,
+          "file_path": "astropy/modeling/core.py",
+          "entity": "astropy.modeling.core.CompoundModel._argnames",
+          "score": 10.43172947878287,
+          "reason": "BM25 match from latest successful scan"
+        },
+        {
+          "rank": 5,
+          "file_path": "astropy/io/misc/asdf/tags/transform/compound.py",
+          "entity": "astropy.io.misc.asdf.tags.transform.compound.CompoundType.to_tree_tagged",
+          "score": 10.406053444772503,
+          "reason": "BM25 match from latest successful scan"
+        }
+      ]
+    }
+  }
+}

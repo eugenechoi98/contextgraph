@@ -93,6 +93,9 @@ def update_scan_run(
                     "entities": stats.entities,
                     "relations": stats.relations,
                     "parse_errors": stats.parse_errors,
+                    "parse_errors_current_scan": stats.parse_errors_current_scan,
+                    "parse_errors_reused": stats.parse_errors_reused,
+                    "parse_errors_total_snapshot": stats.parse_errors_total_snapshot,
                     "reused_files": stats.reused_files,
                     "changed_files": stats.changed_files,
                     "new_files": stats.new_files,
@@ -106,6 +109,8 @@ def update_scan_run(
                     "embedding_reused_count": stats.embedding_reused_count,
                     "embedding_generated_count": stats.embedding_generated_count,
                     "parse_error_messages": stats.parse_error_messages,
+                    "parse_error_messages_current_scan": stats.parse_error_messages_current_scan,
+                    "parse_error_messages_reused": stats.parse_error_messages_reused,
                 },
                 ensure_ascii=False,
             ),
@@ -145,6 +150,57 @@ def get_previous_files(connection: sqlite3.Connection, scan_run_id: str) -> dict
         (scan_run_id,),
     ).fetchall()
     return {row["file_path"]: row for row in rows}
+
+
+def parse_error_file_path(message: str) -> str:
+    """从现有 parse error 文本中提取文件路径。"""
+
+    return message.split(":", 1)[0].replace("\\", "/")
+
+
+def get_reusable_parse_errors(
+    connection: sqlite3.Connection,
+    repo_id: str,
+) -> dict[tuple[str, str], list[str]]:
+    """按文件路径和内容哈希恢复历史 parse error。"""
+
+    scan_rows = connection.execute(
+        """
+        SELECT id, stats_json
+        FROM scan_runs
+        WHERE repo_id = ? AND status = 'done'
+        ORDER BY finished_at DESC, started_at DESC
+        """,
+        (repo_id,),
+    ).fetchall()
+    reusable: dict[tuple[str, str], list[str]] = {}
+    for scan_row in scan_rows:
+        if not scan_row["stats_json"]:
+            continue
+        scan_stats = json.loads(scan_row["stats_json"])
+        messages = [
+            str(message)
+            for message in scan_stats.get("parse_error_messages", [])
+            if isinstance(message, str)
+        ]
+        if not messages:
+            continue
+        messages_by_path: dict[str, list[str]] = {}
+        for message in messages:
+            messages_by_path.setdefault(parse_error_file_path(message), []).append(message)
+        placeholders = ", ".join("?" for _ in messages_by_path)
+        file_rows = connection.execute(
+            f"""
+            SELECT file_path, content_hash
+            FROM files
+            WHERE scan_run_id = ? AND file_path IN ({placeholders})
+            """,
+            [scan_row["id"], *messages_by_path],
+        ).fetchall()
+        for file_row in file_rows:
+            key = (file_row["file_path"], file_row["content_hash"])
+            reusable.setdefault(key, messages_by_path[file_row["file_path"]])
+    return reusable
 
 
 def _insert_relation(
@@ -458,6 +514,8 @@ def _index_source_file(
         parsed_entities = parse_result.entities
         stats.parse_errors += len(parse_result.parse_errors)
         stats.parse_error_messages.extend(parse_result.parse_errors)
+        stats.parse_errors_current_scan += len(parse_result.parse_errors)
+        stats.parse_error_messages_current_scan.extend(parse_result.parse_errors)
 
         for entity in parsed_entities:
             entity_id = _insert_entity_row(connection, file_id, source_file.repo_id, scan_run_id, source_file.path, entity)
@@ -538,6 +596,7 @@ def index_repository(repo_root: Path, settings: Settings) -> dict[str, int | str
             source_files = scan_repository(repo_root, repo_id, settings)
             stats.vector_index_enabled = settings.vector_index_enabled
             previous_files = get_previous_files(connection, previous_scan["id"]) if previous_scan else {}
+            reusable_parse_errors = get_reusable_parse_errors(connection, repo_id) if previous_scan else {}
             current_paths = {source_file.path for source_file in source_files}
             stats.files = len(source_files)
             stats.deleted_files = len(set(previous_files) - current_paths)
@@ -558,6 +617,12 @@ def index_repository(repo_root: Path, settings: Settings) -> dict[str, int | str
                     stats.entities += copied_entities
                     stats.chunks += copied_chunks
                     stats.relations += copied_relations
+                    reused_errors = reusable_parse_errors.get(
+                        (source_file.path, source_file.content_hash),
+                        [],
+                    )
+                    stats.parse_errors_reused += len(reused_errors)
+                    stats.parse_error_messages_reused.extend(reused_errors)
                     continue
                 else:
                     stats.changed_files += 1
@@ -567,7 +632,16 @@ def index_repository(repo_root: Path, settings: Settings) -> dict[str, int | str
                 stats.chunks += partial.chunks
                 stats.relations += partial.relations
                 stats.parse_errors += partial.parse_errors
+                stats.parse_errors_current_scan += partial.parse_errors_current_scan
                 stats.parse_error_messages.extend(partial.parse_error_messages)
+                stats.parse_error_messages_current_scan.extend(partial.parse_error_messages_current_scan)
+
+            stats.parse_errors_total_snapshot = stats.parse_errors_current_scan + stats.parse_errors_reused
+            stats.parse_errors = stats.parse_errors_total_snapshot
+            stats.parse_error_messages = [
+                *stats.parse_error_messages_current_scan,
+                *stats.parse_error_messages_reused,
+            ]
 
             if settings.vector_index_enabled:
                 vector_stats = sync_embeddings_for_scan(connection, settings, repo_id, scan_run_id)
@@ -593,6 +667,9 @@ def index_repository(repo_root: Path, settings: Settings) -> dict[str, int | str
         "file_count": stats.files,
         "chunk_count": stats.chunks,
         "parse_error_count": stats.parse_errors,
+        "parse_error_count_current_scan": stats.parse_errors_current_scan,
+        "parse_error_count_reused": stats.parse_errors_reused,
+        "parse_error_count_total_snapshot": stats.parse_errors_total_snapshot,
         "vector_index_enabled": stats.vector_index_enabled,
         "embedding_provider": stats.embedding_provider,
         "embedding_model": stats.embedding_model,

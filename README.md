@@ -193,7 +193,7 @@ These are current-machine smoke numbers only. They are not a general SLA.
 
 ## Current validation status
 
-- `pytest tests` -> `140 passed, 1 warning`
+- `pytest tests` -> `143 passed, 1 warning`
 - `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
 - offline CodeRankEmbed eval metadata now records `model_smoke_status = coderankembed_smoke_passed`
 - `cgstudio index tests\fixtures\sample_ts_repo` -> `files=7`, `chunks=20`, `entities=27`, `relations=45`
@@ -204,3 +204,4 @@ These are current-machine smoke numbers only. They are not a general SLA.
 - `cgstudio swebench-localize --dry-run` -> no clone, no DB, no index, no retrieve
 - local Git fixture localization smoke -> critical file hit under isolated DB
 - official single-instance localization smoke -> completed with isolated DB; critical file miss on `astropy__astropy-12907`
+- Astropy miss diagnosis -> dotted FTS tokens trigger lexical fallback; runner now indexes once per instance

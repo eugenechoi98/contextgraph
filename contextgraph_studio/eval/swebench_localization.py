@@ -55,6 +55,7 @@ class SweBenchLocalizationCaseResult(BaseModel):
     route_diagnostics: dict[str, dict[str, object]] = Field(default_factory=dict)
     graph_hit_count: int = 0
     checkout_reused: bool = False
+    reused_index: bool = False
     disk_free_bytes: int | None = None
     min_free_bytes: int | None = None
     checkout_elapsed_ms: int | None = None
@@ -128,8 +129,8 @@ def run_swebench_localization(
     effective_min_free_bytes = min_free_bytes if min_free_bytes is not None else settings.swebench_min_free_bytes
     for instance in selected:
         db_path = _db_path(cache_root, instance.instance_id)
-        for config in configs:
-            if dry_run:
+        if dry_run:
+            for config in configs:
                 case_results.append(
                     _dry_case(
                         instance,
@@ -140,25 +141,31 @@ def run_swebench_localization(
                         min_free_bytes=effective_min_free_bytes,
                     )
                 )
-                continue
-            total_started = perf_counter()
-            try:
-                checkout_started = perf_counter()
-                checkout = checkout_repo_at_commit(
-                    CheckoutRequest(
-                        repo=instance.repo,
-                        base_commit=instance.base_commit,
-                        instance_id=instance.instance_id,
-                        cache_dir=cache_root,
-                        allow_network=allow_network,
-                        min_free_bytes=effective_min_free_bytes,
-                    )
+            continue
+
+        instance_started = perf_counter()
+        try:
+            checkout_started = perf_counter()
+            checkout = checkout_repo_at_commit(
+                CheckoutRequest(
+                    repo=instance.repo,
+                    base_commit=instance.base_commit,
+                    instance_id=instance.instance_id,
+                    cache_dir=cache_root,
+                    allow_network=allow_network,
+                    min_free_bytes=effective_min_free_bytes,
                 )
-                checkout_elapsed_ms = _elapsed_ms(checkout_started)
+            )
+            checkout_elapsed_ms = _elapsed_ms(checkout_started)
+            index_settings = _runtime_settings(settings, db_path, graph_enabled=False)
+            index_started = perf_counter()
+            scan = ScanRepoService(index_settings).execute(ScanRepoRequest(path=checkout.checkout_path))
+            index_elapsed_ms = _elapsed_ms(index_started)
+            checkout_size_bytes = directory_size(Path(checkout.checkout_path))
+            index_stats = {key: value for key, value in scan.stats.items() if isinstance(value, (int, str))}
+
+            for config_index, config in enumerate(configs):
                 runtime_settings = _runtime_settings(settings, db_path, graph_enabled=config.graph_enabled)
-                index_started = perf_counter()
-                scan = ScanRepoService(runtime_settings).execute(ScanRepoRequest(path=checkout.checkout_path))
-                index_elapsed_ms = _elapsed_ms(index_started)
                 retrieve_started = perf_counter()
                 pack, debug = retrieve_context_debug(
                     instance.query,
@@ -185,18 +192,20 @@ def run_swebench_localization(
                         retrieval_strategy=pack.retrieval_strategy,
                         route_diagnostics=dict(debug.get("route_diagnostics", {})),
                         checkout_reused=checkout.reused,
+                        reused_index=config_index > 0,
                         disk_free_bytes=checkout.disk_free_bytes,
                         min_free_bytes=effective_min_free_bytes,
                         checkout_elapsed_ms=checkout_elapsed_ms,
                         index_elapsed_ms=index_elapsed_ms,
                         retrieve_elapsed_ms=retrieve_elapsed_ms,
-                        total_elapsed_ms=_elapsed_ms(total_started),
-                        checkout_size_bytes=directory_size(Path(checkout.checkout_path)),
+                        total_elapsed_ms=_elapsed_ms(instance_started),
+                        checkout_size_bytes=checkout_size_bytes,
                         database_size_bytes=file_size(db_path),
-                        index_stats={key: value for key, value in scan.stats.items() if isinstance(value, (int, str))},
+                        index_stats=index_stats,
                     )
                 )
-            except Exception as exc:
+        except Exception as exc:
+            for config in configs:
                 case_results.append(
                     _error_case(
                         instance,
@@ -204,7 +213,7 @@ def run_swebench_localization(
                         db_path=db_path,
                         error=str(exc),
                         min_free_bytes=effective_min_free_bytes,
-                        total_elapsed_ms=_elapsed_ms(total_started),
+                        total_elapsed_ms=_elapsed_ms(instance_started),
                     )
                 )
 
@@ -276,6 +285,7 @@ def render_localization_markdown(result: SweBenchLocalizationRunResult) -> str:
                 f"- checkout_path: `{case.checkout_path}`",
                 f"- database_path: `{case.database_path}`",
                 f"- checkout_reused: `{str(case.checkout_reused).lower()}`",
+                f"- reused_index: `{str(case.reused_index).lower()}`",
                 f"- checkout_size_bytes: `{case.checkout_size_bytes}`",
                 f"- database_size_bytes: `{case.database_size_bytes}`",
                 f"- checkout_elapsed_ms: `{case.checkout_elapsed_ms}`",
@@ -392,6 +402,7 @@ def _scored_case(
     retrieval_strategy: list[str],
     route_diagnostics: dict[str, dict[str, object]],
     checkout_reused: bool,
+    reused_index: bool,
     disk_free_bytes: int,
     min_free_bytes: int,
     checkout_elapsed_ms: int,
@@ -441,6 +452,7 @@ def _scored_case(
         route_diagnostics=route_diagnostics,
         graph_hit_count=graph_hit_count,
         checkout_reused=checkout_reused,
+        reused_index=reused_index,
         disk_free_bytes=disk_free_bytes,
         min_free_bytes=min_free_bytes,
         checkout_elapsed_ms=checkout_elapsed_ms,

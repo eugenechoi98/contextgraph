@@ -92,3 +92,10 @@
   - Final localization completed but missed `astropy/modeling/separable.py` under both `bm25_only` and `bm25_graph`.
   - Graph produced no hits for this case, so it did not improve ranking.
   - Canonical DB SHA256 stayed unchanged.
+- 2026-06-08 Phase 4E-C.1 diagnosis:
+  - The full Astropy issue text produces dotted FTS tokens and fails with `fts5: syntax error near "."`.
+  - Retrieval then enters the unranked lexical fallback, which explains unrelated config and helper files at the top.
+  - Direct anchor queries rank `astropy/modeling/separable.py` first, so the target content and parser coverage are present.
+  - Graph executes but receives six CircleCI `config_key` seeds and stops with `edge_type_filtered`.
+  - The localization runner previously indexed once per retrieval config; it now indexes once per instance.
+  - Parse error reporting now preserves reused snapshot errors without reparsing unchanged files.

@@ -57,7 +57,7 @@ python -m venv .venv
 
 ## Current validation baseline
 
-- `pytest tests` -> `140 passed, 1 warning`
+- `pytest tests` -> `143 passed, 1 warning`
 - `cgstudio index .` -> `parse_errors = 0`
 - `cgstudio retrieve ...` -> BM25 + Graph works in default mode
 - `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
@@ -66,6 +66,7 @@ python -m venv .venv
 - `cgstudio index tests\fixtures\sample_structured_repo` -> `files=7`, `chunks=27`, `entities=30`, `relations=23`, `parse_errors=2`
 - `cgstudio swebench-localize --dry-run` -> no clone, no DB, no index, no retrieve
 - official `astropy__astropy-12907` smoke -> shallow checkout succeeded, isolated index/retrieve completed, canonical DB SHA256 unchanged
+- Phase 4E-C.1 -> one checkout and one index per instance, then one retrieve per config
 
 ## TypeScript / JavaScript parser scope
 

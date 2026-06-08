@@ -4,6 +4,7 @@ from pathlib import Path
 
 from contextgraph_studio.config import Settings
 from contextgraph_studio.eval.swebench_localization import run_swebench_localization
+import contextgraph_studio.eval.swebench_localization as localization_module
 
 
 def git(args: list[str], cwd: Path) -> str:
@@ -126,3 +127,44 @@ def test_localization_uses_isolated_db_and_hits_local_fixture(tmp_path: Path) ->
         assert "src/auth.py" in case.retrieved_files
         assert case.critical_file_hit is True
     assert result.case_results[1].config_name == "bm25_graph"
+    assert result.case_results[0].reused_index is False
+    assert result.case_results[1].reused_index is True
+
+
+def test_runner_reuses_index_across_configs(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    remote, commit = make_git_fixture(tmp_path)
+    manifest_path = tmp_path / "manifest.json"
+    write_manifest(manifest_path, remote, commit)
+    settings = make_settings(tmp_path)
+    counts = {"checkout": 0, "index": 0, "retrieve": 0}
+    real_checkout = localization_module.checkout_repo_at_commit
+    real_execute = localization_module.ScanRepoService.execute
+    real_retrieve = localization_module.retrieve_context_debug
+
+    def counted_checkout(*args, **kwargs):  # type: ignore[no-untyped-def]
+        counts["checkout"] += 1
+        return real_checkout(*args, **kwargs)
+
+    def counted_execute(service, request):  # type: ignore[no-untyped-def]
+        counts["index"] += 1
+        return real_execute(service, request)
+
+    def counted_retrieve(*args, **kwargs):  # type: ignore[no-untyped-def]
+        counts["retrieve"] += 1
+        return real_retrieve(*args, **kwargs)
+
+    monkeypatch.setattr(localization_module, "checkout_repo_at_commit", counted_checkout)
+    monkeypatch.setattr(localization_module.ScanRepoService, "execute", counted_execute)
+    monkeypatch.setattr(localization_module, "retrieve_context_debug", counted_retrieve)
+
+    result = run_swebench_localization(
+        settings,
+        manifest_path=manifest_path,
+        output_dir=tmp_path / "reports",
+        config_names=["bm25_only", "bm25_graph"],
+    )
+
+    errors = [case.error for case in result.case_results if case.error]
+    assert errors == []
+    assert counts == {"checkout": 1, "index": 1, "retrieve": 2}
+    assert len({case.scan_run_id for case in result.case_results}) == 1

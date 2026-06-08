@@ -91,6 +91,14 @@ The runner only performs localization smoke. It does not apply patches, run targ
 The official single-instance smoke needed Hugging Face data, but the local venv did not have the optional `datasets` package installed and this phase should not install dependencies. The loader therefore falls back to the official Hugging Face datasets-server rows API.
 
 The official Astropy checkout also exposed duplicate stable `relations.id` inserts during indexing. The fix is limited to ignoring duplicate relation inserts and counting only rows actually inserted. This prevents index failure without adding relation types, changing graph traversal, or changing retrieval ranking.
+
+## 2026-06-08: Phase 4E-C.1 separates indexing from retrieval configs
+
+`bm25_only` and `bm25_graph` use the same indexed snapshot. The localization runner now checks out and indexes once per instance, then performs one independent retrieval per config. This removes duplicate indexing without changing retrieval semantics.
+
+Parse errors now distinguish current parsing, reused-file errors, and total snapshot errors. Reused errors are restored only when path and content hash match, so snapshot reports stay honest without reparsing unchanged files.
+
+The Astropy miss is recorded but not fixed in this phase because its direct cause is FTS query construction and fallback ordering, which is retrieval behavior outside the authorized infrastructure-only scope.
 ## 2026-06-08: Graph expectation is a characterization label, not a scoring gate
 
 Phase 4B.3 expands the first-party golden dataset and adds `graph_expectation` with three values:
