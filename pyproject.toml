@@ -8,6 +8,8 @@ version = "0.1.0"
 description = "ContextGraph Studio MVP: repository indexing, retrieval planning, and context-pack delivery."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
   "fastapi>=0.115,<1.0",
   "mcp>=1.9,<2.0",

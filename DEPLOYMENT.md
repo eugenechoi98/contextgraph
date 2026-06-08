@@ -148,6 +148,7 @@ Validated artifacts:
 
 - `contextgraph_studio-0.1.0-py3-none-any.whl`
 - `contextgraph_studio-0.1.0.tar.gz`
+- MIT `LICENSE` must be included in both wheel and sdist before GitHub publication.
 
 Runtime package data:
 

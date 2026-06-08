@@ -258,3 +258,7 @@ GitHub Actions CI runs a lightweight no-model validation:
 - `pytest tests`
 
 Before publishing changes, check that generated DBs, reports, caches, `.env`, third-party checkouts, and model files are not tracked.
+
+## License
+
+MIT

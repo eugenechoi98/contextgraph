@@ -2,33 +2,32 @@
 
 - 当前正式工作区：`D:\contextgraph-studio`
 - 禁止继续开发路径：`C:\Users\Administrator.DESKTOP-5G2BKSD\Documents\contextgraph`
-- 当前阶段：Phase 5B，Packaging Artifact + uvx Local Install Validation
+- 当前阶段：Phase 5C，GitHub 发布前最终审计
 - 当前 canonical DB：`D:\contextgraph-studio\.data\contextgraph.db`
-- 当前 release smoke 目录：`D:\contextgraph-release-smoke\phase5b`
+- 当前 release smoke 目录：`D:\contextgraph-release-smoke\phase5c`
 - 当前虚拟环境：`D:\contextgraph-studio\.venv`
 - 最后更新时间：2026-06-09
 
 ## 当前目标
 
-- 验证 wheel / sdist 构建、安装包内容、仓库外安装、MCP stdio、uvx 本地 wheel 启动。
-- 不发布 PyPI，不 push，不创建 GitHub Release。
+- 完成 GitHub 发布前最终收口：MIT LICENSE、发布元数据、Git 历史和仓库清洁审计、README / MCP / CI 最终核对、发布清单。
 
 ## 当前进度
 
-- Phase 5A checkpoint 已提交：`3ff8951 chore(open-source): establish GitHub readiness baseline`。
-- 已做最小 packaging 修复：默认 `task_strategies.yaml` 改为包内 resource，并随 wheel/sdist 分发。
-- wheel / sdist 已构建到仓库外 release smoke 目录。
-- wheel、sdist、MCP stdio wheel smoke、uvx 本地 wheel smoke 均已通过。
+- Phase 5B checkpoint 已提交：`932fe8f fix(packaging): ship runtime task strategies in distributions`。
+- 已新增标准 MIT `LICENSE`。
+- 已新增 `RELEASE_CHECKLIST.md`。
+- `pyproject.toml` 已补 `license = { file = "LICENSE" }`。
 
 ## 下一步
 
-- 跑定向测试和全量测试。
-- 做 repository hygiene、路径和密钥扫描。
-- 不创建 Phase 5B commit，除非 eugene 明确要求。
+- 重建 wheel / sdist，确认 LICENSE 和 runtime package data 进入产物。
+- 跑 Git 历史审计、仓库清洁审计和全量测试。
+- 不创建 Phase 5C commit，除非 eugene 明确要求。
 
 ## 注意事项
 
-- 本阶段禁止继续开发 retrieval、parser、Graph、embedding、benchmark、MCP 业务逻辑或前端功能。
+- 本阶段禁止 push、创建远程仓库、发布 PyPI、创建 GitHub Release 或 tag。
+- 不要修改 retrieval、parser、Graph、embedding、benchmark 或 MCP 业务逻辑。
 - 不要下载 embedding 模型，不要运行 Docker，不要执行 patch，不要跑 target repo tests。
 - 不要删除 SWE-bench cache、隔离 DB、第三方 checkout 或 canonical DB。
-- 构建产物、release smoke DB、uvx cache 均在仓库外。
