@@ -57,7 +57,7 @@ def evaluate_vector_quality(settings: Settings) -> tuple[bool, str, str | None]:
         return (
             False,
             "Deterministic embeddings validate pipeline correctness only; they do not measure semantic retrieval quality.",
-            None,
+            "pipeline validation only",
         )
     if provider in {"nomic", "local_nomic", "sentence_transformer", "sentence-transformer"} and "nomic" in model.lower():
         return (

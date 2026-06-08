@@ -86,3 +86,34 @@
   - MiniLM is a good real-semantic fallback
   - CodeRankEmbed is better than MiniLM on this repo and is now the preferred local code-specialized baseline
 - Canonical DB is currently back on CodeRankEmbed embeddings.
+
+## Phase 4B.6 Note
+
+- Default startup remains no-model mode:
+  - `VECTOR_INDEX_ENABLED=false`
+  - `HYBRID_VECTOR_ENABLED=false`
+- Default mode does not auto-download any embedding model and does not require `trust_remote_code`.
+- `cgstudio index .` now reports lightweight vector observability fields without changing retrieval behavior:
+  - `vector_index_enabled`
+  - `embedding_provider`
+  - `embedding_model`
+  - `embedding_revision`
+  - `embedding_dimension`
+  - `embedding_count`
+  - `embedding_reused_count`
+  - `embedding_generated_count`
+- `.env.example` now documents three supported local states:
+  - default no-model mode
+  - CodeRankEmbed first-download mode
+  - CodeRankEmbed offline mode
+- Local model policy is now settled:
+  - `nomic-ai/CodeRankEmbed` is the recommended local code-specialized baseline
+  - `sentence-transformers/all-MiniLM-L6-v2` remains the lightweight fallback
+  - `nomic-ai/nomic-embed-code` remains deferred on current hardware
+- Eval metadata now keeps a stable distinction across deterministic, MiniLM, and CodeRankEmbed runs, including `embedding_revision`, `vector_quality_scope`, `model_smoke_status`, and `code_specialized`.
+- Latest full validation is now `95 passed, 1 warning`.
+- Latest offline CodeRankEmbed smoke succeeded with:
+  - `local_files_only=true`
+  - `model_smoke_status=coderankembed_smoke_passed`
+  - full `13`-case eval still at `failed_case_count=0`
+- Phase 4B ends here. The next suggested round is `TypeScript / JavaScript parser`, not more embedding model exploration.

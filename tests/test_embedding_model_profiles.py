@@ -14,6 +14,8 @@ def test_minilm_profile_has_no_query_prompt_or_prefix() -> None:
 def test_coderankembed_profile_uses_official_query_prefix() -> None:
     profile = resolve_embedding_model_profile("nomic-ai/CodeRankEmbed")
 
+    assert profile.license_name == "MIT"
+    assert profile.dimension == 768
     assert profile.query_prefix == "Represent this query for searching relevant code: "
     assert profile.query_prompt_name is None
     assert profile.document_prompt_name is None
@@ -25,6 +27,7 @@ def test_coderankembed_profile_uses_official_query_prefix() -> None:
 def test_nomic_embed_code_profile_uses_query_prompt() -> None:
     profile = resolve_embedding_model_profile("nomic-ai/nomic-embed-code")
 
+    assert profile.dimension == 768
     assert profile.query_prompt_name == "query"
     assert profile.query_prefix is None
     assert profile.document_prompt_name is None

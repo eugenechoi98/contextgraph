@@ -146,7 +146,7 @@ def test_run_eval_skips_draft_cases_and_records_failures(tmp_path: Path) -> None
     assert result.embedding_revision is None
     assert result.code_specialized is False
     assert result.model_smoke_status is None
-    assert result.vector_quality_scope is None
+    assert result.vector_quality_scope == "pipeline validation only"
     assert Path(result.json_report_path).exists()
     assert Path(result.markdown_report_path).exists()
     assert Path(result.latest_json_report_path).exists()
@@ -187,14 +187,14 @@ def test_run_eval_skips_draft_cases_and_records_failures(tmp_path: Path) -> None
     assert stored["embedding_device"] is None
     assert stored["code_specialized"] is False
     assert stored["model_smoke_status"] is None
-    assert stored["vector_quality_scope"] is None
+    assert stored["vector_quality_scope"] == "pipeline validation only"
 
     markdown_report = Path(result.markdown_report_path).read_text(encoding="utf-8")
     assert "- embedding_revision: `None`" in markdown_report
     assert "- embedding_device: `None`" in markdown_report
     assert "- code_specialized: `false`" in markdown_report
     assert "- model_smoke_status: `None`" in markdown_report
-    assert "- vector_quality_scope: `None`" in markdown_report
+    assert "- vector_quality_scope: `pipeline validation only`" in markdown_report
 
 
 def test_evaluate_vector_quality_marks_real_semantic_fallback(tmp_path: Path) -> None:

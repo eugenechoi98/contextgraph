@@ -1,30 +1,32 @@
 # ContextGraph Studio
 
-ContextGraph Studio 是一个面向 AI Coding Agent 的工程化上下文检索底座。当前正式工作区已经固定为 `D:\contextgraph-studio`。
+ContextGraph Studio is a local retrieval stack for AI coding agents. The canonical workspace is `D:\contextgraph-studio`.
 
-## 当前能力
+## What works now
 
-- repository / scan_run 正式索引主链
-- Python AST parser 与结构化 chunking
-- SQLite `files / entities / chunks / traces / embeddings / relations / eval_runs`
-- FTS5 / BM25
-- 可选 vector recall
-- 可选 graph recall
-- RRF 融合
-- schema-first `ContextPack`
-- CLI / FastAPI / MCP stdio server
-- golden dataset eval runner
-- eval ablation route diagnostics (`requested / executed / participating`)
-- planner-driven source-code BM25 candidate lane
+- Repository indexing with `files / entities / chunks / traces / embeddings / relations / eval_runs`
+- BM25 retrieval
+- Optional graph retrieval
+- Optional vector retrieval
+- RRF fusion
+- Golden-dataset eval
 
-## Canonical Workspace
+## Default mode
 
-- 正式工作区：`D:\contextgraph-studio`
-- 迁移来源快照：`C:\Users\Administrator.DESKTOP-5G2BKSD\Documents\contextgraph`
+Default startup is still the safe no-model path:
 
-后续开发、测试、index、eval、serve、mcp 只允许在 D 盘执行。
+```env
+VECTOR_INDEX_ENABLED=false
+HYBRID_VECTOR_ENABLED=false
+```
 
-## 快速开始
+That means:
+
+- no embedding model download
+- no `trust_remote_code` requirement
+- BM25 + Graph can still run
+
+## Quick start
 
 ```powershell
 python -m venv .venv
@@ -32,20 +34,53 @@ python -m venv .venv
 .\.venv\Scripts\cgstudio.exe init-db
 .\.venv\Scripts\cgstudio.exe index .
 .\.venv\Scripts\cgstudio.exe retrieve "verify token auth flow" --task-hint security_auth --max-tokens 8000 --repo-id 8bf02440-5d4e-5fa2-8916-a955c2c21fd2
-.\.venv\Scripts\cgstudio.exe eval --repo-id 8bf02440-5d4e-5fa2-8916-a955c2c21fd2 --dataset eval\fixtures\contextgraph_golden.json --max-cases 5
 ```
 
-## 当前验证状态
+## Recommended local vector model
 
-- `pytest --collect-only -q tests` -> `59 collected`
-- `pytest tests` -> `67 passed`
-- `cgstudio index .` -> `parse_errors = 0`
-- `cgstudio eval ...` -> `failed_case_count = 0`
+Current recommended local code-specialized semantic baseline:
 
-## 注意事项
+- model: `nomic-ai/CodeRankEmbed`
+- revision: `3c4b60807d71f79b43f3c4363786d9493691f8b1`
+- license: `MIT`
+- dimension: `768`
+- device used in this repo smoke: `cpu`
+- query prefix: `Represent this query for searching relevant code:`
 
-- deterministic embedding 只用于离线开发与流程校验
-- `vector_quality_valid=false` 是预期行为
-- intake 默认排除 `.tmp*`、`tmp_pytest*`、`eval/fixtures`、`eval/reports`
-- `chunking_001` 当前仍是 lexical miss，`chunker.py` 不在 BM25 top 30，因此本轮未启用 Code Seed Reserve
-- `chunking_001` 已通过 source-code candidate lane 提升为 critical hit，但这不代表 graph 或 semantic vector 质量已被证明提升
+Important:
+
+- it is only loaded when you explicitly enable vector indexing
+- `trust_remote_code=true` must be explicitly enabled
+- cache must live outside the repo
+- after the first download, normal local use should switch back to `EMBEDDING_LOCAL_FILES_ONLY=true`
+
+Example config is in [.env.example](/D:/contextgraph-studio/.env.example).
+
+## Lightweight fallback
+
+If you want a lighter real semantic fallback instead of the code-specialized baseline:
+
+- model: `sentence-transformers/all-MiniLM-L6-v2`
+- scope: `lightweight semantic fallback; not code-specialized`
+
+## High-resource deferred target
+
+Long-term target model kept deferred on current hardware:
+
+- `nomic-ai/nomic-embed-code`
+
+It is not the current default because this machine is still a poor fit for a safe local `7B` smoke.
+
+## Current smoke reference numbers
+
+These are current-machine smoke numbers only. They are not a general SLA.
+
+- CodeRankEmbed rebuild on this machine: about `35.74 s`
+- Cache footprint after download: about `640 MB`
+- 13-case eval: CodeRankEmbed beat MiniLM on this repo
+
+## Current validation status
+
+- `pytest tests` -> `95 passed, 1 warning`
+- `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
+- offline CodeRankEmbed eval metadata now records `model_smoke_status = coderankembed_smoke_passed`

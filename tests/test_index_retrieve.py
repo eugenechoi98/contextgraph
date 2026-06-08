@@ -29,6 +29,8 @@ def test_index_and_retrieve(tmp_path: Path) -> None:
     assert result["file_count"] == 2
     assert result["chunk_count"] >= 2
     assert "scan_run_id" in result
+    assert result["vector_index_enabled"] is False
+    assert result["embedding_model"] is None
 
     pack = retrieve_context("gateway", settings, top_k=5, repo_id=result["repo_id"])
     assert pack.retrieval_strategy == ["bm25"]
@@ -61,6 +63,7 @@ def test_incremental_index_and_deleted_file(tmp_path: Path) -> None:
         second_stats = json.loads(scan_runs[-1]["stats_json"])
         assert second_stats["reused_files"] == 2
         assert second_stats["changed_files"] == 0
+        assert second_stats["vector_index_enabled"] is False
 
     target.unlink()
     third = index_repository(repo, settings)
@@ -114,3 +117,27 @@ def test_failed_scan_does_not_replace_latest_successful(tmp_path: Path, monkeypa
             (first["repo_id"],),
         ).fetchall()
     assert rows[-1]["status"] == "failed"
+
+
+def test_index_reports_vector_observability_when_enabled(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "main.py").write_text("def gateway():\n    return 'ok'\n", encoding="utf-8")
+
+    settings = Settings(
+        data_dir=tmp_path / ".data",
+        database_path=tmp_path / ".data" / "contextgraph.db",
+        vector_index_enabled=True,
+        embedding_provider="deterministic",
+        embedding_model="deterministic-sha256",
+        embedding_dimension=16,
+        embedding_batch_size=8,
+    )
+    result = index_repository(repo, settings)
+
+    assert result["vector_index_enabled"] is True
+    assert result["embedding_provider"] == "deterministic"
+    assert result["embedding_model"] == "deterministic-sha256"
+    assert result["embedding_revision"] is None
+    assert result["embedding_dimension"] == 16
+    assert int(result["embedding_count"]) == int(result["chunk_count"])

@@ -94,6 +94,14 @@ def update_scan_run(
                     "changed_files": stats.changed_files,
                     "new_files": stats.new_files,
                     "deleted_files": stats.deleted_files,
+                    "vector_index_enabled": stats.vector_index_enabled,
+                    "embedding_provider": stats.embedding_provider,
+                    "embedding_model": stats.embedding_model,
+                    "embedding_revision": stats.embedding_revision,
+                    "embedding_dimension": stats.embedding_dimension,
+                    "embedding_count": stats.embedding_count,
+                    "embedding_reused_count": stats.embedding_reused_count,
+                    "embedding_generated_count": stats.embedding_generated_count,
                     "parse_error_messages": stats.parse_error_messages,
                 },
                 ensure_ascii=False,
@@ -517,6 +525,7 @@ def index_repository(repo_root: Path, settings: Settings) -> dict[str, int | str
         stats = IndexingStats()
         try:
             source_files = scan_repository(repo_root, repo_id, settings)
+            stats.vector_index_enabled = settings.vector_index_enabled
             previous_files = get_previous_files(connection, previous_scan["id"]) if previous_scan else {}
             current_paths = {source_file.path for source_file in source_files}
             stats.files = len(source_files)
@@ -550,7 +559,14 @@ def index_repository(repo_root: Path, settings: Settings) -> dict[str, int | str
                 stats.parse_error_messages.extend(partial.parse_error_messages)
 
             if settings.vector_index_enabled:
-                sync_embeddings_for_scan(connection, settings, repo_id, scan_run_id)
+                vector_stats = sync_embeddings_for_scan(connection, settings, repo_id, scan_run_id)
+                stats.embedding_provider = settings.embedding_provider
+                stats.embedding_model = settings.embedding_model
+                stats.embedding_revision = settings.embedding_revision
+                stats.embedding_dimension = settings.embedding_dimension
+                stats.embedding_count = stats.chunks
+                stats.embedding_reused_count = vector_stats.reused_embeddings
+                stats.embedding_generated_count = vector_stats.generated_embeddings
             stats.relations = build_relations_for_scan(connection, repo_id, scan_run_id, source_files)
             sync_fts_for_latest_scan(connection, repo_id, scan_run_id)
             update_scan_run(connection, scan_run_id, "done", stats)
@@ -566,4 +582,12 @@ def index_repository(repo_root: Path, settings: Settings) -> dict[str, int | str
         "file_count": stats.files,
         "chunk_count": stats.chunks,
         "parse_error_count": stats.parse_errors,
+        "vector_index_enabled": stats.vector_index_enabled,
+        "embedding_provider": stats.embedding_provider,
+        "embedding_model": stats.embedding_model,
+        "embedding_revision": stats.embedding_revision,
+        "embedding_dimension": stats.embedding_dimension,
+        "embedding_count": stats.embedding_count,
+        "embedding_reused_count": stats.embedding_reused_count,
+        "embedding_generated_count": stats.embedding_generated_count,
     }

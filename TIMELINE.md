@@ -23,3 +23,7 @@
 - 2026-06-08: Added embedding model profiles, explicit `trust_remote_code` gating, revision-aware embedding fingerprints, and profile coverage in new tests
 - 2026-06-08: Reviewed official CodeRankEmbed custom code at pinned revision `3c4b60807d71f79b43f3c4363786d9493691f8b1`, added missing `einops` dependency, and passed smoke plus offline second load
 - 2026-06-08: Rebuilt and compared deterministic, MiniLM, and CodeRankEmbed embeddings on the same 13-case dataset, then restored canonical DB to CodeRankEmbed
+- 2026-06-08: Committed Phase 4B.5 checkpoint as `0631704` and entered Phase 4B.6 to finalize local embedding baseline policy and runtime docs
+- 2026-06-08: Added `.env.example`, fixed deterministic eval metadata to `vector_quality_scope = "pipeline validation only"`, and exposed lightweight vector observability fields from `cgstudio index .`
+- 2026-06-08: Verified both default no-model mode and offline CodeRankEmbed mode, then closed Phase 4B with CodeRankEmbed as the recommended local code-specialized baseline
+- 2026-06-08: Next recommended round changed to `TypeScript / JavaScript parser`

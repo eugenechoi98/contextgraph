@@ -144,4 +144,12 @@ class IndexingStats:
     changed_files: int = 0
     new_files: int = 0
     deleted_files: int = 0
+    vector_index_enabled: bool = False
+    embedding_provider: str | None = None
+    embedding_model: str | None = None
+    embedding_revision: str | None = None
+    embedding_dimension: int | None = None
+    embedding_count: int = 0
+    embedding_reused_count: int = 0
+    embedding_generated_count: int = 0
     parse_error_messages: list[str] = field(default_factory=list)

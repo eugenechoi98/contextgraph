@@ -39,6 +39,8 @@ class EmbeddingProvider(Protocol):
 @dataclass(frozen=True, slots=True)
 class EmbeddingModelProfile:
     model_name: str
+    license_name: str | None = None
+    dimension: int | None = None
     trust_remote_code: bool = False
     query_prefix: str | None = None
     query_prompt_name: str | None = None
@@ -51,11 +53,14 @@ class EmbeddingModelProfile:
 _EMBEDDING_MODEL_PROFILES: dict[str, EmbeddingModelProfile] = {
     "sentence-transformers/all-minilm-l6-v2": EmbeddingModelProfile(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
+        dimension=384,
         quality_scope="lightweight semantic fallback; not code-specialized",
         code_specialized=False,
     ),
     "nomic-ai/coderankembed": EmbeddingModelProfile(
         model_name="nomic-ai/CodeRankEmbed",
+        license_name="MIT",
+        dimension=768,
         trust_remote_code=True,
         query_prefix="Represent this query for searching relevant code: ",
         revision="3c4b60807d71f79b43f3c4363786d9493691f8b1",
@@ -64,6 +69,7 @@ _EMBEDDING_MODEL_PROFILES: dict[str, EmbeddingModelProfile] = {
     ),
     "nomic-ai/nomic-embed-code": EmbeddingModelProfile(
         model_name="nomic-ai/nomic-embed-code",
+        dimension=768,
         query_prompt_name="query",
         quality_scope="code-specialized local embedding baseline",
         code_specialized=True,

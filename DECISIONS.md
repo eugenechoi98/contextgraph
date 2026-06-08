@@ -190,3 +190,38 @@ So the local recommendation now becomes:
 
 - keep `nomic-ai/nomic-embed-code` as the long-term intended target
 - use `nomic-ai/CodeRankEmbed` as the current local MVP code-specialized baseline
+
+## 2026-06-08: Keep default startup in no-model mode
+
+Even after validating local embeddings, the default project behavior stays:
+
+- `VECTOR_INDEX_ENABLED=false`
+- `HYBRID_VECTOR_ENABLED=false`
+
+Reason:
+
+- first-time users should be able to run BM25 + Graph without waiting for a model download
+- CodeRankEmbed requires explicit `trust_remote_code=true`
+- the recommended local semantic baseline should be opt-in, not silently activated
+
+## 2026-06-08: Final local model policy for Phase 4B
+
+Phase 4B closes with four clearly separated local states:
+
+- default no-model mode: safe startup, no download, BM25 + Graph only
+- CodeRankEmbed: recommended local code-specialized baseline
+- MiniLM: lightweight fallback when users need a smaller semantic option
+- nomic-embed-code: deferred high-resource target, not validated on this workstation
+
+This avoids mixing "recommended now", "fallback", and "future target" into one ambiguous embedding story.
+
+## 2026-06-08: Index CLI should expose lightweight vector observability
+
+When vector indexing is enabled, `cgstudio index .` should report:
+
+- whether vector indexing is enabled
+- which provider/model/revision produced vectors
+- vector dimension
+- how many embeddings were reused versus freshly generated
+
+This is enough to debug local embedding state without changing retrieval logic or expanding `ContextPack` schema.
