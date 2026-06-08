@@ -40,6 +40,16 @@ class CountingProvider(DeterministicEmbeddingProvider):
         self.total_texts = 0
 
 
+class RevisionCountingProvider(CountingProvider):
+    def __init__(self, dimension: int, model_name: str, revision: str) -> None:
+        super().__init__(dimension=dimension, model_name=model_name)
+        self._revision = revision
+
+    @property
+    def revision(self) -> str | None:
+        return self._revision
+
+
 def test_vector_index_writes_embeddings_and_searches(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -141,6 +151,45 @@ def test_vector_index_rebuilds_when_dimension_changes(tmp_path: Path, monkeypatc
     second_settings = make_settings(tmp_path, embedding_dimension=12)
     second = index_repository(repo, second_settings)
     assert provider.total_texts == int(second["chunk_count"])
+
+
+def test_vector_index_rebuilds_when_revision_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "auth.py").write_text("def verify_token():\n    return True\n", encoding="utf-8")
+
+    first_settings = make_settings(
+        tmp_path,
+        embedding_provider="sentence-transformer",
+        embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+        embedding_dimension=16,
+        embedding_revision="rev-a",
+        embedding_local_files_only=True,
+    )
+    first_provider = RevisionCountingProvider(
+        dimension=16,
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        revision="rev-a",
+    )
+    monkeypatch.setattr(vector_store, "build_embedding_provider", lambda settings: first_provider)
+    index_repository(repo, first_settings)
+
+    second_provider = RevisionCountingProvider(
+        dimension=16,
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        revision="rev-b",
+    )
+    monkeypatch.setattr(vector_store, "build_embedding_provider", lambda settings: second_provider)
+    second_settings = make_settings(
+        tmp_path,
+        embedding_provider="sentence-transformer",
+        embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+        embedding_dimension=16,
+        embedding_revision="rev-b",
+        embedding_local_files_only=True,
+    )
+    second = index_repository(repo, second_settings)
+    assert second_provider.total_texts == int(second["chunk_count"])
 
 
 def test_deleted_file_disappears_from_latest_vector_search(tmp_path: Path) -> None:

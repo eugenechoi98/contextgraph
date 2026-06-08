@@ -18,6 +18,7 @@ from contextgraph_studio.eval.metrics import (
     dedupe_files,
 )
 from contextgraph_studio.eval.models import ConfigEvalResult, EvalConfig, EvalRunResult, GoldenDataset
+from contextgraph_studio.indexing.embedder import resolve_embedding_model_profile
 from contextgraph_studio.services.retriever import retrieve_context_debug
 from contextgraph_studio.services.scan_resolver import resolve_repo_and_scan_run
 
@@ -51,6 +52,7 @@ def evaluate_vector_quality(settings: Settings) -> tuple[bool, str, str | None]:
 
     provider = settings.embedding_provider.strip().lower()
     model = settings.embedding_model.strip()
+    profile = resolve_embedding_model_profile(model)
     if provider == "deterministic":
         return (
             False,
@@ -61,13 +63,13 @@ def evaluate_vector_quality(settings: Settings) -> tuple[bool, str, str | None]:
         return (
             True,
             "A code-specialized local embedding model is active, and this eval run is eligible to count toward semantic vector quality baselining.",
-            "code-specialized local embedding baseline",
+            profile.quality_scope or "code-specialized local embedding baseline",
         )
     if provider in {"sentence_transformer", "sentence-transformer"} and "all-minilm-l6-v2" in model.lower():
         return (
             True,
             "A lightweight real semantic embedding fallback is active for this eval run.",
-            "lightweight semantic fallback; not code-specialized",
+            profile.quality_scope or "lightweight semantic fallback; not code-specialized",
         )
     return (
         False,
@@ -183,7 +185,9 @@ def run_eval(
         draft_cases=len(draft_cases),
         embedding_provider=settings.embedding_provider,
         embedding_model=settings.embedding_model,
+        embedding_revision=settings.embedding_revision,
         embedding_device=settings.embedding_device,
+        code_specialized=resolve_embedding_model_profile(settings.embedding_model).code_specialized,
         model_smoke_status=settings.embedding_smoke_status,
         vector_quality_valid=vector_quality_valid,
         vector_quality_note=vector_quality_note,
@@ -244,7 +248,9 @@ def render_markdown_report(result: EvalRunResult) -> str:
         f"- draft_cases: `{result.draft_cases}`",
         f"- embedding_provider: `{result.embedding_provider}`",
         f"- embedding_model: `{result.embedding_model}`",
+        f"- embedding_revision: `{result.embedding_revision}`",
         f"- embedding_device: `{result.embedding_device}`",
+        f"- code_specialized: `{str(result.code_specialized).lower()}`",
         f"- model_smoke_status: `{result.model_smoke_status}`",
         f"- vector_quality_valid: `{str(result.vector_quality_valid).lower()}`",
         f"- vector_quality_scope: `{result.vector_quality_scope}`",

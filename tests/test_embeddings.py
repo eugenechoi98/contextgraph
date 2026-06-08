@@ -8,9 +8,11 @@ from contextgraph_studio.config import Settings
 from contextgraph_studio.db import connect, init_db
 from contextgraph_studio.indexing.embedder import (
     DeterministicEmbeddingProvider,
+    EmbeddingModelProfile,
     EmbeddingProviderError,
     SentenceTransformerEmbeddingProvider,
     build_embedding_provider,
+    resolve_embedding_model_profile,
     validate_embedding_output,
 )
 from contextgraph_studio.indexing.vector_store import (
@@ -140,6 +142,7 @@ def test_build_embedding_provider_passes_sentence_transformer_options(tmp_path: 
         embedding_cache_dir=tmp_path / "cache",
         embedding_local_files_only=True,
         embedding_revision="main",
+        embedding_trust_remote_code=False,
     )
 
     provider = build_embedding_provider(settings)
@@ -147,6 +150,7 @@ def test_build_embedding_provider_passes_sentence_transformer_options(tmp_path: 
     assert isinstance(provider, SentenceTransformerEmbeddingProvider)
     assert provider.model_name == "sentence-transformers/all-MiniLM-L6-v2"
     assert provider.dimension == 384
+    assert provider.revision == "main"
 
 
 def test_sentence_transformer_provider_uses_query_prompt_and_cache_options(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -183,6 +187,7 @@ def test_sentence_transformer_provider_uses_query_prompt_and_cache_options(monke
         cache_dir="D:/contextgraph-model-cache",
         local_files_only=True,
         revision="main",
+        trust_remote_code=False,
     )
 
     provider.embed_queries(["query text"])
@@ -230,8 +235,48 @@ def test_sentence_transformer_provider_skips_query_prompt_when_model_has_none(mo
         model_name="sentence-transformers/all-MiniLM-L6-v2",
         dimension=3,
         batch_size=2,
+        trust_remote_code=False,
     )
 
     provider.embed_queries(["query text"])
 
     assert calls == [(None, ["query text"])]
+
+
+def test_sentence_transformer_provider_applies_coderank_query_prefix(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str | None, list[str]]] = []
+
+    class FakeSentenceTransformer:
+        def __init__(self, model_name, **kwargs):  # type: ignore[no-untyped-def]
+            self.prompts = {}
+
+        def encode(self, texts, **kwargs):  # type: ignore[no-untyped-def]
+            calls.append((kwargs.get("prompt_name"), list(texts)))
+            return np.ones((len(texts), 3), dtype=np.float32)
+
+    import sys
+    import types
+
+    fake_module = types.SimpleNamespace(SentenceTransformer=FakeSentenceTransformer)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_module)
+
+    provider = SentenceTransformerEmbeddingProvider(
+        model_name="nomic-ai/CodeRankEmbed",
+        dimension=3,
+        batch_size=2,
+        trust_remote_code=True,
+    )
+
+    provider.embed_queries(["Tune structure-aware chunking"])
+    provider.embed_documents(["def chunk_markdown(): pass"])
+
+    assert calls == [
+        (None, ["Represent this query for searching relevant code: Tune structure-aware chunking"]),
+        (None, ["def chunk_markdown(): pass"]),
+    ]
+
+
+def test_resolve_embedding_model_profile_returns_neutral_profile_for_unknown_model() -> None:
+    profile = resolve_embedding_model_profile("example/unknown-model")
+
+    assert profile == EmbeddingModelProfile(model_name="example/unknown-model")

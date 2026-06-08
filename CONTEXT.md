@@ -70,3 +70,19 @@
 - Latest full 13-case eval under the fallback model still has `failed_case_count=0`.
 - `vector_quality_valid=true` is now allowed for this run, but the scope is explicitly `lightweight semantic fallback; not code-specialized`.
 - `bm25_vector` now improves over `bm25_only` on both `MRR` and `Recall@5`, so vector is no longer only a pipeline check in this configuration.
+
+## Phase 4B.5 Note
+
+- `nomic-ai/CodeRankEmbed` is now the tested code-specialized comparison target for local CPU usage.
+- Official pinned revision for this phase is `3c4b60807d71f79b43f3c4363786d9493691f8b1`.
+- The adapter now uses model profiles instead of scattering model-name checks through business logic.
+- CodeRankEmbed query encoding now applies the official prefix `Represent this query for searching relevant code: `.
+- CodeRankEmbed requires explicit `trust_remote_code=true`; it is no longer silently enabled by default.
+- Embedding fingerprinting now distinguishes provider, model, and revision so different model revisions do not silently reuse old vectors.
+- Official custom code review found no obvious unsafe behavior in the two reviewed Python files.
+- CodeRankEmbed smoke succeeded on `cpu`, and offline second load with `local_files_only=true` also succeeded from `D:\contextgraph-model-cache`.
+- Current like-for-like eval comparison on the same `13` active cases shows:
+  - deterministic vector is still only a pipeline baseline
+  - MiniLM is a good real-semantic fallback
+  - CodeRankEmbed is better than MiniLM on this repo and is now the preferred local code-specialized baseline
+- Canonical DB is currently back on CodeRankEmbed embeddings.

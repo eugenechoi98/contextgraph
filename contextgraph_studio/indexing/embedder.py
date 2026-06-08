@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import dataclass
 from math import sqrt
 from typing import Protocol
 
@@ -27,9 +28,57 @@ class EmbeddingProvider(Protocol):
     @property
     def dimension(self) -> int: ...
 
+    @property
+    def revision(self) -> str | None: ...
+
     def embed_documents(self, texts: list[str]) -> list[list[float]]: ...
 
     def embed_queries(self, texts: list[str]) -> list[list[float]]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class EmbeddingModelProfile:
+    model_name: str
+    trust_remote_code: bool = False
+    query_prefix: str | None = None
+    query_prompt_name: str | None = None
+    document_prompt_name: str | None = None
+    revision: str | None = None
+    quality_scope: str | None = None
+    code_specialized: bool = False
+
+
+_EMBEDDING_MODEL_PROFILES: dict[str, EmbeddingModelProfile] = {
+    "sentence-transformers/all-minilm-l6-v2": EmbeddingModelProfile(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        quality_scope="lightweight semantic fallback; not code-specialized",
+        code_specialized=False,
+    ),
+    "nomic-ai/coderankembed": EmbeddingModelProfile(
+        model_name="nomic-ai/CodeRankEmbed",
+        trust_remote_code=True,
+        query_prefix="Represent this query for searching relevant code: ",
+        revision="3c4b60807d71f79b43f3c4363786d9493691f8b1",
+        quality_scope="lightweight code-specialized local baseline",
+        code_specialized=True,
+    ),
+    "nomic-ai/nomic-embed-code": EmbeddingModelProfile(
+        model_name="nomic-ai/nomic-embed-code",
+        query_prompt_name="query",
+        quality_scope="code-specialized local embedding baseline",
+        code_specialized=True,
+    ),
+}
+
+
+def resolve_embedding_model_profile(model_name: str) -> EmbeddingModelProfile:
+    """Return the adapter profile for a known model or a neutral fallback profile."""
+
+    normalized = model_name.strip().lower()
+    profile = _EMBEDDING_MODEL_PROFILES.get(normalized)
+    if profile is not None:
+        return profile
+    return EmbeddingModelProfile(model_name=model_name.strip())
 
 
 def validate_embedding_output(
@@ -80,6 +129,10 @@ class DeterministicEmbeddingProvider:
     def dimension(self) -> int:
         return self._dimension
 
+    @property
+    def revision(self) -> str | None:
+        return None
+
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
@@ -126,6 +179,7 @@ class SentenceTransformerEmbeddingProvider:
         cache_dir: str | None = None,
         local_files_only: bool = True,
         revision: str | None = None,
+        trust_remote_code: bool = False,
     ) -> None:
         if dimension <= 0:
             raise EmbeddingProviderError(f"Embedding dimension must be positive, got {dimension}.")
@@ -137,7 +191,9 @@ class SentenceTransformerEmbeddingProvider:
         self._device = device
         self._cache_dir = cache_dir
         self._local_files_only = local_files_only
-        self._revision = revision
+        self._profile = resolve_embedding_model_profile(model_name)
+        self._revision = revision or self._profile.revision
+        self._trust_remote_code = trust_remote_code
         self._model = None
 
     @property
@@ -152,12 +208,15 @@ class SentenceTransformerEmbeddingProvider:
     def dimension(self) -> int:
         return self._dimension
 
+    @property
+    def revision(self) -> str | None:
+        return self._revision
+
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return self._encode(texts)
+        return self._encode(self._apply_document_profile(texts), prompt_name=self._profile.document_prompt_name)
 
     def embed_queries(self, texts: list[str]) -> list[list[float]]:
-        # For nomic-embed-code the official model-card path uses prompt_name="query".
-        return self._encode(texts, prompt_name="query")
+        return self._encode(self._apply_query_profile(texts), prompt_name=self._profile.query_prompt_name)
 
     def _encode(self, texts: list[str], *, prompt_name: str | None = None) -> list[list[float]]:
         if not texts:
@@ -192,9 +251,23 @@ class SentenceTransformerEmbeddingProvider:
             vectors = vectors.reshape(1, -1)
         return validate_embedding_output(texts, [row.tolist() for row in vectors], self.dimension)
 
+    def _apply_query_profile(self, texts: list[str]) -> list[str]:
+        prefix = self._profile.query_prefix
+        if not prefix:
+            return texts
+        return [f"{prefix}{text}" for text in texts]
+
+    def _apply_document_profile(self, texts: list[str]) -> list[str]:
+        return texts
+
     def _get_model(self):  # pragma: no cover - dependency/model environment specific
         if self._model is not None:
             return self._model
+        if self._profile.trust_remote_code and not self._trust_remote_code:
+            raise EmbeddingProviderError(
+                f"Model '{self.model_name}' requires trust_remote_code=True. "
+                "Enable it explicitly with EMBEDDING_TRUST_REMOTE_CODE=true after reviewing the pinned revision."
+            )
         try:
             from sentence_transformers import SentenceTransformer
         except ImportError as exc:
@@ -204,7 +277,7 @@ class SentenceTransformerEmbeddingProvider:
             ) from exc
         self._model = SentenceTransformer(
             self.model_name,
-            trust_remote_code=True,
+            trust_remote_code=self._trust_remote_code,
             device=self._device,
             cache_folder=self._cache_dir,
             local_files_only=self._local_files_only,
@@ -236,6 +309,7 @@ def build_embedding_provider(settings: Settings) -> EmbeddingProvider:
             cache_dir=str(settings.embedding_cache_dir) if settings.embedding_cache_dir else None,
             local_files_only=settings.embedding_local_files_only,
             revision=settings.embedding_revision,
+            trust_remote_code=settings.embedding_trust_remote_code,
         )
     raise EmbeddingProviderError(
         f"Unsupported embedding provider '{settings.embedding_provider}'. "

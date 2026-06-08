@@ -58,11 +58,17 @@ python -m venv .venv
 - Do not write model cache, temp artifacts, or reports into Git-tracked paths.
 - Back up `D:\contextgraph-studio\.data\contextgraph.db` before any canonical embedding rebuild.
 - If `nomic-ai/nomic-embed-code` is not safely runnable locally, use `sentence-transformers/all-MiniLM-L6-v2` only as a lightweight semantic fallback baseline and record that scope explicitly in eval output.
+- For `nomic-ai/CodeRankEmbed`:
+  - pin revision `3c4b60807d71f79b43f3c4363786d9493691f8b1`
+  - keep `EMBEDDING_TRUST_REMOTE_CODE=false` by default
+  - only turn it on explicitly for reviewed CodeRankEmbed smoke / rebuild / eval runs
+  - return to `EMBEDDING_LOCAL_FILES_ONLY=true` after the first download smoke
 
 ## 注意事项
 
 - deterministic embedding only validates the pipeline and keeps `vector_quality_valid=false`
 - the current real semantic fallback baseline records `vector_quality_valid=true` with scope `lightweight semantic fallback; not code-specialized`
+- the current local code-specialized baseline records `vector_quality_valid=true` with scope `lightweight code-specialized local baseline`
 - `eval/fixtures` 与 `eval/reports` 不会被索引
 - `cgstudio mcp` 的协议可用性以 MCP stdio integration tests 为准
 - `C:\Users\Administrator.DESKTOP-5G2BKSD\Documents\contextgraph` 仅保留为迁移来源快照，不再运行测试、index、eval、serve 或 mcp

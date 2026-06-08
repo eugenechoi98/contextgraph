@@ -83,6 +83,10 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("EMBEDDING_REVISION", "CONTEXTGRAPH_EMBEDDING_REVISION"),
     )
+    embedding_trust_remote_code: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("EMBEDDING_TRUST_REMOTE_CODE", "CONTEXTGRAPH_EMBEDDING_TRUST_REMOTE_CODE"),
+    )
     embedding_smoke_status: str | None = Field(
         default=None,
         validation_alias=AliasChoices("EMBEDDING_SMOKE_STATUS", "CONTEXTGRAPH_EMBEDDING_SMOKE_STATUS"),

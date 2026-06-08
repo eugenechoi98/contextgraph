@@ -205,7 +205,9 @@ class EvalRunResult(BaseModel):
     draft_cases: int
     embedding_provider: str
     embedding_model: str
+    embedding_revision: str | None = None
     embedding_device: str | None = None
+    code_specialized: bool = False
     model_smoke_status: str | None = None
     vector_quality_valid: bool
     vector_quality_note: str

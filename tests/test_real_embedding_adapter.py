@@ -31,6 +31,7 @@ def test_sentence_transformer_defaults_to_no_download(tmp_path: Path) -> None:
     assert provider.dimension == 768
     assert provider._local_files_only is True  # type: ignore[attr-defined]
     assert provider._cache_dir is None  # type: ignore[attr-defined]
+    assert provider._trust_remote_code is False  # type: ignore[attr-defined]
 
 
 def test_sentence_transformer_missing_dependency_error_is_clear(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -74,3 +75,31 @@ def test_sentence_transformer_can_opt_in_to_downloadable_mode(tmp_path: Path) ->
     assert provider._local_files_only is False  # type: ignore[attr-defined]
     assert provider._cache_dir == str(tmp_path / "cache")  # type: ignore[attr-defined]
     assert provider._device == "cpu"  # type: ignore[attr-defined]
+
+
+def test_coderankembed_requires_explicit_trust_remote_code() -> None:
+    provider = SentenceTransformerEmbeddingProvider(
+        model_name="nomic-ai/CodeRankEmbed",
+        dimension=768,
+        batch_size=4,
+        local_files_only=True,
+        trust_remote_code=False,
+    )
+
+    with pytest.raises(EmbeddingProviderError) as exc_info:
+        provider.embed_queries(["chunking query"])
+
+    assert "requires trust_remote_code=True" in str(exc_info.value)
+
+
+def test_coderankembed_uses_pinned_profile_revision_when_not_overridden(tmp_path: Path) -> None:
+    provider = build_embedding_provider(
+        make_settings(
+            tmp_path,
+            embedding_model="nomic-ai/CodeRankEmbed",
+            embedding_trust_remote_code=True,
+        )
+    )
+
+    assert isinstance(provider, SentenceTransformerEmbeddingProvider)
+    assert provider.revision == "3c4b60807d71f79b43f3c4363786d9493691f8b1"

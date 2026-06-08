@@ -19,3 +19,7 @@
 - 2026-06-08: Completed Phase 4B.3 dataset characterization pass, added `graph_expectation`, expanded eval reporting with graph participation summaries, and documented graph value findings in `eval/analysis/graph_value_characterization.md`
 - 2026-06-08: Completed Phase 4B.4 Stage A hardware/dependency gate, deferred unsafe local `nomic-ai/nomic-embed-code` smoke, and switched to a controlled real semantic fallback smoke with `sentence-transformers/all-MiniLM-L6-v2`
 - 2026-06-08: Updated the local embedding adapter to separate query/document encoding, added no-download and metadata coverage, rebuilt canonical fallback embeddings, and ran a full 13-case eval with `vector_quality_valid=true` scoped to a lightweight semantic fallback baseline
+- 2026-06-08: Committed Phase 4B.4 checkpoint as `8e6dfe5` and entered Phase 4B.5 for CodeRankEmbed comparison
+- 2026-06-08: Added embedding model profiles, explicit `trust_remote_code` gating, revision-aware embedding fingerprints, and profile coverage in new tests
+- 2026-06-08: Reviewed official CodeRankEmbed custom code at pinned revision `3c4b60807d71f79b43f3c4363786d9493691f8b1`, added missing `einops` dependency, and passed smoke plus offline second load
+- 2026-06-08: Rebuilt and compared deterministic, MiniLM, and CodeRankEmbed embeddings on the same 13-case dataset, then restored canonical DB to CodeRankEmbed

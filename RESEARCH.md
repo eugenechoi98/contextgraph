@@ -6,3 +6,19 @@
     - code or document side uses plain `encode(...)`
   - Sentence Transformers official semantic-search docs also separate query/document encoding semantics (`encode_query` / `encode_document` style guidance), so the local adapter should not force a query prompt onto indexed code chunks.
   - The architecture fallback remains `sentence-transformers/all-MiniLM-L6-v2`; it is a lightweight semantic baseline, not a code-specialized final quality bar.
+- 2026-06-08 Phase 4B.5 official-source check:
+  - Hugging Face model card for `nomic-ai/CodeRankEmbed` describes it as a `137M` bi-encoder for code retrieval with `8192` context length and `MIT` license.
+  - The official usage example requires:
+    - `SentenceTransformer("nomic-ai/CodeRankEmbed", trust_remote_code=True)`
+    - query prefix `Represent this query for searching relevant code: `
+    - code/document side stays plain `encode(...)`
+  - Official pinned revision used in this phase:
+    - `3c4b60807d71f79b43f3c4363786d9493691f8b1`
+  - Custom-code review scope:
+    - reviewed `configuration_hf_nomic_bert.py`
+    - reviewed `modeling_hf_nomic_bert.py`
+  - Obvious unsafe behavior found:
+    - `no`
+  - Notes:
+    - the custom model code requires `einops`, so the local `.[local-embeddings]` extra now includes it
+    - `nomic-ai/nomic-embed-code` remains deferred because the `7B` local smoke is still not a safe fit for this workstation

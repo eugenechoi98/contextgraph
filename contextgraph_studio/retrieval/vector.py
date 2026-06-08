@@ -68,7 +68,7 @@ def search_similar_chunks(
     init_db(settings)
     provider = build_embedding_provider(settings)
     query_vector = np.asarray(provider.embed_queries([query])[0], dtype=np.float32)
-    model_fingerprint = build_embedding_fingerprint(provider.provider_name, provider.model_name)
+    model_fingerprint = build_embedding_fingerprint(provider.provider_name, provider.model_name, provider.revision)
 
     with connect(settings.database_path) as connection:
         resolved_repo_id, scan_run_id = resolve_repo_and_scan_run(connection, repo_id)

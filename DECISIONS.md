@@ -141,3 +141,52 @@ But the run must also record:
 - `vector_quality_scope = "lightweight semantic fallback; not code-specialized"`
 
 This allows the team to claim a real semantic baseline without overstating it as final code-retrieval quality.
+## 2026-06-08: Put model-specific query behavior behind adapter profiles
+
+Phase 4B.5 needs to support three distinct local behaviors:
+
+- MiniLM: no special query prompt or prefix
+- CodeRankEmbed: fixed query prefix plus explicit `trust_remote_code`
+- nomic-embed-code: `prompt_name="query"` on the query side only
+
+We do not want those rules scattered through indexing, retrieval, or eval code. The adapter therefore owns a small profile map that centralizes:
+
+- query prefix
+- query prompt name
+- document prompt name
+- pinned revision
+- trust requirement
+- quality scope
+- whether the model is code-specialized
+## 2026-06-08: CodeRankEmbed must be pinned and explicitly trusted
+
+Because `nomic-ai/CodeRankEmbed` requires `trust_remote_code=True`, Phase 4B.5 treats that as an explicit security gate:
+
+- pin the revision
+- review the custom Python files
+- keep cache outside the repo
+- default `embedding_trust_remote_code=false`
+- require an explicit opt-in before loading the model
+
+This is stricter than the prior adapter behavior, which was too permissive for custom-code models.
+## 2026-06-08: Revision changes must invalidate embedding reuse
+
+Changing only the model revision is enough to change vector semantics, even when the model name and dimension stay the same.
+
+Phase 4B.5 therefore extends the embedding fingerprint to include revision so that:
+
+- old vectors are not silently reused across model revisions
+- local rebuilds stay auditable
+- MiniLM and CodeRankEmbed historical vectors remain cleanly separated
+## 2026-06-08: Adopt CodeRankEmbed as the local MVP code-specialized baseline
+
+On the current repo state and the same 13-case golden dataset:
+
+- deterministic remains a non-semantic pipeline baseline
+- MiniLM remains a useful fallback
+- CodeRankEmbed outperforms MiniLM on `bm25_vector` MRR and Recall@5 and does not introduce observed case regressions
+
+So the local recommendation now becomes:
+
+- keep `nomic-ai/nomic-embed-code` as the long-term intended target
+- use `nomic-ai/CodeRankEmbed` as the current local MVP code-specialized baseline

@@ -22,9 +22,11 @@ class VectorSyncStats:
     orphan_embeddings_removed: int = 0
 
 
-def build_embedding_fingerprint(provider_name: str, model_name: str) -> str:
+def build_embedding_fingerprint(provider_name: str, model_name: str, revision: str | None = None) -> str:
     """构造 provider 作用域内的模型标识。"""
 
+    if revision:
+        return f"{provider_name}::{model_name}@{revision}"
     return f"{provider_name}::{model_name}"
 
 
@@ -178,7 +180,7 @@ def sync_embeddings_for_scan(
         return VectorSyncStats()
 
     provider = build_embedding_provider(settings)
-    model_fingerprint = build_embedding_fingerprint(provider.provider_name, provider.model_name)
+    model_fingerprint = build_embedding_fingerprint(provider.provider_name, provider.model_name, provider.revision)
     stats = VectorSyncStats()
     chunk_rows = connection.execute(
         """
