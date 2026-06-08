@@ -117,3 +117,50 @@
   - `model_smoke_status=coderankembed_smoke_passed`
   - full `13`-case eval still at `failed_case_count=0`
 - Phase 4B ends here. The next suggested round is `TypeScript / JavaScript parser`, not more embedding model exploration.
+
+## Phase 4C Note
+
+- The repo now has a minimal Tree-sitter parser loop for:
+  - `.ts`
+  - `.tsx`
+  - `.js`
+  - `.jsx`
+- Added runtime dependencies:
+  - `tree-sitter`
+  - `tree-sitter-typescript`
+  - `tree-sitter-javascript`
+- The new parser reuses the existing indexing pipeline and current domain models:
+  - `ParseResult`
+  - `EntityRecord`
+  - `RelationRecord`
+- Current extracted entities are:
+  - `file`
+  - `module`
+  - `class`
+  - `function`
+  - `method`
+  - `api_route`
+- Current extracted relations are:
+  - `contains`
+  - `imports`
+  - `calls`
+  - `route_to_handler`
+- Route support is intentionally minimal and only covers clear Express-like static patterns such as `router.post("/login", loginHandler)`.
+- Dynamic route registration and broader Node framework coverage are still out of scope.
+- Added `tests/fixtures/sample_ts_repo` and confirmed fixture indexing plus retrieval work end to end.
+- Latest full validation is now `102 passed, 1 warning`.
+- Fixture smoke showed:
+  - repo_id `562fa47b-b5c9-5752-be3b-e0bf65ad2ef0`
+  - latest successful scan_run_id `6362f6f6-d6af-4a0d-b81f-e83e8304c859`
+  - `files=7`
+  - `chunks=20`
+  - `entities=27`
+  - `relations=45`
+- Retrieval smoke on the fixture now includes real graph evidence through `calls`:
+  - `src/auth.loginHandler -> src/auth.verifyToken`
+  - `src/auth.verifyToken -> src/auth.parseToken`
+- Canonical repo regression passed after excluding `tests/fixtures` from normal workspace indexing:
+  - repo_id `8bf02440-5d4e-5fa2-8916-a955c2c21fd2`
+  - scan_run_id `4586616d-31fa-48f6-a022-f9005b85ef5e`
+  - `parse_errors=0`
+  - default mode still does not auto-download embedding models

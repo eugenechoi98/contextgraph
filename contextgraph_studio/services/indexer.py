@@ -18,6 +18,7 @@ from contextgraph_studio.domain import (
 from contextgraph_studio.graph.builder import build_relations_for_scan
 from contextgraph_studio.indexing.vector_store import sync_embeddings_for_scan
 from contextgraph_studio.parsers.python_parser import PythonParser
+from contextgraph_studio.parsers.typescript_parser import TypeScriptParser
 from contextgraph_studio.services.chunker import chunk_source_file
 from contextgraph_studio.services.intake import scan_repository
 
@@ -441,9 +442,12 @@ def _index_source_file(
     entity_ids: dict[str, str] = {source_file.path: file_entity_id}
 
     parse_result: ParseResult | None = None
-    parsed_entities: list[EntityRecord] = []
     if source_file.language == "python":
         parse_result = PythonParser().parse(source_file.path, source_file.content, file_id)
+    elif source_file.language in {"typescript", "tsx", "javascript", "jsx"}:
+        parse_result = TypeScriptParser().parse(source_file.path, source_file.content, file_id, source_file.language)
+
+    if parse_result is not None:
         parsed_entities = parse_result.entities
         stats.parse_errors += len(parse_result.parse_errors)
         stats.parse_error_messages.extend(parse_result.parse_errors)
@@ -466,7 +470,7 @@ def _index_source_file(
                 )
                 stats.relations += 1
 
-    chunks = chunk_source_file(source_file, settings, parsed_entities if source_file.language == "python" else None)
+    chunks = chunk_source_file(source_file, settings, parse_result)
 
     if source_file.language == "markdown":
         entity_count, chunk_count = _build_doc_entities_and_chunks(

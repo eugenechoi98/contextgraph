@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 
 from contextgraph_studio.config import Settings
-from contextgraph_studio.domain import ChunkRecord, EntityRecord, SourceFile
+from contextgraph_studio.domain import ChunkRecord, EntityRecord, ParseResult, SourceFile
 
 
 MD_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
@@ -72,20 +72,42 @@ def chunk_markdown(source: SourceFile) -> list[MarkdownSection]:
     return sections
 
 
-def build_file_summary(source: SourceFile, entities: list[EntityRecord]) -> str:
+def build_file_summary(
+    source: SourceFile,
+    entities: list[EntityRecord],
+    relations: list | None = None,
+) -> str:
     """生成 file_summary 内容。"""
 
+    exports = [
+        entity.symbol_name
+        for entity in entities
+        if entity.entity_type in {"class", "function", "method"} and entity.symbol_name and (entity.signature or "").startswith("export ")
+    ]
+    imports = []
+    if relations:
+        imports = sorted(
+            {
+                relation.to_symbol_name
+                for relation in relations
+                if getattr(relation, "edge_type", None) == "imports" and getattr(relation, "to_symbol_name", None)
+            }
+        )
     symbols = [
         entity.symbol_name
         for entity in entities
-        if entity.entity_type in {"class", "function", "method"} and entity.symbol_name
+        if entity.entity_type in {"class", "function", "method", "api_route"} and entity.symbol_name
     ]
+    export_lines = "\n".join(f"- {item}" for item in exports[:24]) if exports else "- (no extracted exports)"
+    import_lines = "\n".join(f"- {item}" for item in imports[:24]) if imports else "- (no extracted imports)"
     symbol_lines = "\n".join(f"- {item}" for item in symbols[:24]) if symbols else "- (no extracted symbols)"
     return (
         f"file_path: {source.path}\n"
         f"language: {source.language}\n"
         f"category: {source.category}\n"
         f"line_count: {source.line_count}\n"
+        f"exports:\n{export_lines}\n"
+        f"imports:\n{import_lines}\n"
         f"symbols:\n{symbol_lines}"
     )
 
@@ -172,12 +194,13 @@ def chunk_windowed(source: SourceFile, settings: Settings) -> list[ChunkRecord]:
     return chunks
 
 
-def chunk_python(source: SourceFile, entities: list[EntityRecord]) -> list[ChunkRecord]:
-    """按 Python 实体生成 chunk。"""
+def chunk_structured_source(source: SourceFile, parse_result: ParseResult) -> list[ChunkRecord]:
+    """Generate chunks from extracted code entities."""
 
     chunks: list[ChunkRecord] = []
     lines = source.content.splitlines()
-    file_summary = build_file_summary(source, entities)
+    entities = parse_result.entities
+    file_summary = build_file_summary(source, entities, parse_result.relations)
     chunks.append(
         ChunkRecord(
             entity_symbol_name=source.path,
@@ -219,13 +242,26 @@ def chunk_python(source: SourceFile, entities: list[EntityRecord]) -> list[Chunk
         elif entity.entity_type in {"function", "method"} and entity.line_start and entity.line_end:
             snippet = "\n".join(lines[entity.line_start - 1 : entity.line_end]).strip()
             chunks.extend(split_large_symbol(entity.symbol_name, snippet, entity.line_start))
+        elif entity.entity_type == "api_route":
+            route_content = entity.signature or entity.display_name
+            chunks.append(
+                ChunkRecord(
+                    entity_symbol_name=entity.symbol_name,
+                    chunk_kind="symbol",
+                    content=route_content,
+                    tokens_estimate=estimate_tokens(route_content),
+                    line_start=entity.line_start,
+                    line_end=entity.line_end,
+                    content_hash=_hash_text(route_content),
+                )
+            )
     return chunks
 
 
 def chunk_source_file(
     source: SourceFile,
     settings: Settings,
-    entities: list[EntityRecord] | None = None,
+    parse_result: ParseResult | None = None,
 ) -> list[ChunkRecord]:
     """根据语言与实体选择切分策略。"""
 
@@ -242,6 +278,6 @@ def chunk_source_file(
             )
             for section in chunk_markdown(source)
         ]
-    if source.language == "python" and entities is not None:
-        return chunk_python(source, entities)
+    if source.language in {"python", "typescript", "tsx", "javascript", "jsx"} and parse_result is not None:
+        return chunk_structured_source(source, parse_result)
     return chunk_windowed(source, settings)

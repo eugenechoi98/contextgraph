@@ -5,6 +5,7 @@ ContextGraph Studio is a local retrieval stack for AI coding agents. The canonic
 ## What works now
 
 - Repository indexing with `files / entities / chunks / traces / embeddings / relations / eval_runs`
+- Python plus minimal TypeScript / JavaScript parsing for `.ts`, `.tsx`, `.js`, and `.jsx`
 - BM25 retrieval
 - Optional graph retrieval
 - Optional vector retrieval
@@ -35,6 +36,32 @@ python -m venv .venv
 .\.venv\Scripts\cgstudio.exe index .
 .\.venv\Scripts\cgstudio.exe retrieve "verify token auth flow" --task-hint security_auth --max-tokens 8000 --repo-id 8bf02440-5d4e-5fa2-8916-a955c2c21fd2
 ```
+
+## TypeScript / JavaScript support
+
+The current MVP parser loop supports:
+
+- `.ts`
+- `.tsx`
+- `.js`
+- `.jsx`
+
+Current extracted entities:
+
+- `module`
+- `class`
+- `function`
+- `method`
+- `api_route`
+
+Current extracted relations:
+
+- `contains`
+- `imports`
+- `calls`
+- `route_to_handler`
+
+Route extraction is intentionally narrow. It only covers clear static Express-like patterns such as `router.post("/login", loginHandler)`.
 
 ## Recommended local vector model
 
@@ -81,6 +108,7 @@ These are current-machine smoke numbers only. They are not a general SLA.
 
 ## Current validation status
 
-- `pytest tests` -> `95 passed, 1 warning`
+- `pytest tests` -> `102 passed, 1 warning`
 - `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
 - offline CodeRankEmbed eval metadata now records `model_smoke_status = coderankembed_smoke_passed`
+- `cgstudio index tests\fixtures\sample_ts_repo` -> `files=7`, `chunks=20`, `entities=27`, `relations=45`

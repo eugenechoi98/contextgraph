@@ -15,9 +15,9 @@ def detect_language(path: Path) -> str:
     mapping = {
         ".py": "python",
         ".ts": "typescript",
-        ".tsx": "typescript",
+        ".tsx": "tsx",
         ".js": "javascript",
-        ".jsx": "javascript",
+        ".jsx": "jsx",
         ".go": "go",
         ".rs": "rust",
         ".java": "java",
@@ -40,9 +40,26 @@ def classify_file(path: Path) -> tuple[str, str]:
     """识别文件类型与语言。"""
 
     lower_parts = {part.lower() for part in path.parts}
+    lower_name = path.name.lower()
     suffix = path.suffix.lower()
 
     if any(part in {"tests", "test", "__tests__"} for part in lower_parts):
+        return "test", detect_language(path)
+    if any(
+        lower_name.endswith(test_suffix)
+        for test_suffix in (
+            ".test.ts",
+            ".spec.ts",
+            ".test.tsx",
+            ".spec.tsx",
+            ".test.js",
+            ".spec.js",
+            ".test.jsx",
+            ".spec.jsx",
+            ".test.py",
+            ".spec.py",
+        )
+    ):
         return "test", detect_language(path)
     if any(part in {"docs", "doc"} for part in lower_parts) or suffix in DOC_SUFFIXES:
         return "doc", detect_language(path)

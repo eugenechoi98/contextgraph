@@ -225,3 +225,44 @@ When vector indexing is enabled, `cgstudio index .` should report:
 - how many embeddings were reused versus freshly generated
 
 This is enough to debug local embedding state without changing retrieval logic or expanding `ContextPack` schema.
+
+## 2026-06-08: Phase 4C uses official Tree-sitter wheels only
+
+For the first TypeScript / JavaScript parser loop, the project now depends on:
+
+- `tree-sitter`
+- `tree-sitter-typescript`
+- `tree-sitter-javascript`
+
+This phase does not add a Node.js build step, local grammar compilation, or a large multi-language pack.
+
+## 2026-06-08: Keep TS/JS parsing inside the existing pipeline
+
+The new TS/JS parser must feed the same indexing and retrieval pipeline as Python:
+
+- same `ParseResult`
+- same `EntityRecord`
+- same `RelationRecord`
+- same SQLite `entities / relations / chunks`
+- same `ContextPack` schema
+
+This keeps TS/JS support as an extension of the current MVP rather than a second indexing system.
+
+## 2026-06-08: Route extraction stays narrow and explicit
+
+Phase 4C only recognizes clear, static Express-like route registrations such as:
+
+- `app.get("/users", listUsers)`
+- `router.post("/login", loginHandler)`
+
+It intentionally skips dynamic paths, chained runtime builders, and framework-specific magic.
+
+## 2026-06-08: Exclude local test fixtures from canonical workspace indexing
+
+The canonical repo now excludes `tests/fixtures` during normal workspace indexing.
+
+Reason:
+
+- fixture repos are useful as standalone parser smoke targets
+- fixture syntax-error files should not pollute the canonical repo scan
+- indexing `tests/fixtures/sample_ts_repo` directly still works because the fixture becomes the repo root in that mode

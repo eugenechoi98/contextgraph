@@ -22,3 +22,16 @@
   - Notes:
     - the custom model code requires `einops`, so the local `.[local-embeddings]` extra now includes it
     - `nomic-ai/nomic-embed-code` remains deferred because the `7B` local smoke is still not a safe fit for this workstation
+- 2026-06-08 Phase 4C official-source check:
+  - `tree-sitter` `0.25.2` is the official Python binding package.
+  - The grammar wheels used in this phase are:
+    - `tree-sitter-javascript` `0.25.0`
+    - `tree-sitter-typescript` `0.23.2`
+  - The Python binding load path works through `tree_sitter.Language(...)` around the grammar wheel `PyCapsule`, then `Parser.language = ...`.
+  - `tree-sitter-typescript` ships separate TypeScript and TSX grammars:
+    - `language_typescript()`
+    - `language_tsx()`
+  - `tree-sitter-javascript` provides one JavaScript grammar wheel, and this phase uses it for both `.js` and `.jsx`.
+  - ABI compatibility note:
+    - the validated local combination for this workstation is `tree-sitter 0.25.2` + `tree-sitter-javascript 0.25.0` + `tree-sitter-typescript 0.23.2`
+    - this combination was smoke-tested successfully in the project venv on Windows without adding a Node.js build step or compiling grammars locally

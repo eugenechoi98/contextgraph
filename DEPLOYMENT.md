@@ -56,11 +56,43 @@ python -m venv .venv
 
 ## Current validation baseline
 
-- `pytest tests` -> `95 passed, 1 warning`
+- `pytest tests` -> `102 passed, 1 warning`
 - `cgstudio index .` -> `parse_errors = 0`
 - `cgstudio retrieve ...` -> BM25 + Graph works in default mode
 - `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
 - offline CodeRankEmbed eval metadata records `model_smoke_status = coderankembed_smoke_passed`
+- `cgstudio index tests\fixtures\sample_ts_repo` -> `files=7`, `chunks=20`, `entities=27`, `relations=45`
+
+## TypeScript / JavaScript parser scope
+
+Current parser support covers:
+
+- `.ts`
+- `.tsx`
+- `.js`
+- `.jsx`
+
+Current extracted entities:
+
+- `module`
+- `class`
+- `function`
+- `method`
+- `api_route`
+
+Current extracted relations:
+
+- `contains`
+- `imports`
+- `calls`
+- `route_to_handler`
+
+Current limits:
+
+- route detection only supports clear static Express-like registrations
+- dynamic route builders are skipped
+- `tests/fixtures` is excluded from normal canonical workspace indexing
+- fixture repos can still be indexed directly when they are used as the repo root
 
 ## Model policy
 

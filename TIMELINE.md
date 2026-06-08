@@ -27,3 +27,8 @@
 - 2026-06-08: Added `.env.example`, fixed deterministic eval metadata to `vector_quality_scope = "pipeline validation only"`, and exposed lightweight vector observability fields from `cgstudio index .`
 - 2026-06-08: Verified both default no-model mode and offline CodeRankEmbed mode, then closed Phase 4B with CodeRankEmbed as the recommended local code-specialized baseline
 - 2026-06-08: Next recommended round changed to `TypeScript / JavaScript parser`
+- 2026-06-08: Committed Phase 4B.6 checkpoint as `ba265d2` and entered Phase 4C for the minimum TypeScript / JavaScript parser loop
+- 2026-06-08: Added official Tree-sitter Python bindings plus JavaScript and TypeScript grammar wheels, then implemented parser dispatch for `.ts`, `.tsx`, `.js`, and `.jsx`
+- 2026-06-08: Added minimal TS/JS entity extraction for `module`, `class`, `function`, `method`, and `api_route`, plus `imports`, `calls`, and `route_to_handler`
+- 2026-06-08: Added `tests/fixtures/sample_ts_repo`, new TS/JS parser/index/graph tests, and excluded `tests/fixtures` from canonical workspace indexing
+- 2026-06-08: Passed fixture smoke and canonical Python regression, with full validation updated to `102 passed, 1 warning`

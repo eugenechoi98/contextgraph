@@ -9,6 +9,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from contextgraph_studio.domain import SourceFile
 from contextgraph_studio.parsers.python_parser import PythonParser
+from contextgraph_studio.parsers.typescript_parser import TypeScriptParser
 
 
 def _stable_relation_id(
@@ -113,12 +114,19 @@ def build_relations_for_scan(
             add_relation(parent, row, "contains", weight=1.0)
 
     for source_file in source_files:
-        if source_file.language != "python" or source_file.is_excluded:
+        if source_file.is_excluded:
             continue
-        parse_result = PythonParser().parse(source_file.path, source_file.content, source_file.path)
+        parse_result = None
+        current_module_symbol = _module_symbol_for_path(source_file.path)
+        if source_file.language == "python":
+            parse_result = PythonParser().parse(source_file.path, source_file.content, source_file.path)
+            current_module_symbol = source_file.path.removesuffix(".py").replace("/", ".") or source_file.path
+        elif source_file.language in {"typescript", "tsx", "javascript", "jsx"}:
+            parse_result = TypeScriptParser().parse(source_file.path, source_file.content, source_file.path, source_file.language)
+        if parse_result is None:
+            continue
         if parse_result.parse_errors:
             continue
-        current_module_symbol = source_file.path.removesuffix(".py").replace("/", ".") or source_file.path
         for relation in parse_result.relations:
             from_row = _resolve_exact_symbol(symbol_map, relation.from_symbol_name)
             if from_row is None:
@@ -127,6 +135,13 @@ def build_relations_for_scan(
             if relation.edge_type == "imports":
                 target_row = _resolve_import_target(symbol_map, relation.to_symbol_name)
             elif relation.edge_type == "calls":
+                target_row = _resolve_callable_target(
+                    relation.to_symbol_name,
+                    current_module_symbol,
+                    symbol_map,
+                    display_name_map,
+                )
+            elif relation.edge_type == "route_to_handler":
                 target_row = _resolve_callable_target(
                     relation.to_symbol_name,
                     current_module_symbol,
@@ -167,6 +182,9 @@ def _parent_entity_for_contains(
     symbol_name = row["symbol_name"] or ""
     if row["entity_type"] == "module":
         return None
+    if row["entity_type"] == "api_route" and "::" in symbol_name:
+        parent_symbol = symbol_name.split("::", 1)[0]
+        return symbol_map.get(parent_symbol)
     if row["entity_type"] == "method" and "." in symbol_name:
         parent_symbol = symbol_name.rsplit(".", 1)[0]
         return symbol_map.get(parent_symbol)
@@ -245,3 +263,7 @@ def _call_count(meta_json: str | None) -> int:
         return 1
     value = payload.get("call_count", 1)
     return int(value) if isinstance(value, int | float) else 1
+
+
+def _module_symbol_for_path(file_path: str) -> str:
+    return file_path.rsplit(".", 1)[0] if "." in file_path else file_path
