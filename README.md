@@ -52,6 +52,8 @@ repository scan
 
 ## Quick Start
 
+Development install from a source checkout:
+
 Windows PowerShell:
 
 ```powershell
@@ -70,6 +72,25 @@ python -m venv .venv
 ./.venv/bin/cgstudio init-db
 ./.venv/bin/cgstudio index .
 ./.venv/bin/cgstudio retrieve "verify token auth flow"
+```
+
+PyPI publication is pending. Until then, release artifact validation uses a local wheel:
+
+```powershell
+python -m pip install <local-wheel>
+cgstudio --help
+```
+
+Verified local `uvx` smoke:
+
+```powershell
+uvx --from <local-wheel> cgstudio --help
+```
+
+After PyPI publication, the planned command shape is:
+
+```powershell
+uvx --from contextgraph-studio cgstudio --help
 ```
 
 ## CLI Usage
@@ -166,6 +187,22 @@ Boundaries:
 - SWE-bench cache and per-instance SQLite DBs must stay outside tracked source paths
 
 Latest three-instance smoke recovered critical hits for Astropy, Django, and Matplotlib after adding Python module-level assignment chunks. See `eval/analysis/` for the detailed reports.
+
+Early localization evidence:
+
+- official SWE-bench Lite smoke sample: `3` instances
+- critical hit rate: `3 / 3`
+- Astropy rank: `1`
+- Django rank: `7`
+- Matplotlib rank: `2`
+
+This is an early localization smoke, not a full SWE-bench Lite benchmark. It does not execute patches, run target tests, or use a Docker harness.
+
+Current-machine performance evidence only:
+
+- Astropy unchanged snapshot reuse improved from about `20.9 min` to about `4.4 min`
+- relative improvement: about `79%`
+- this is not a general SLA
 
 ## Security And Data Boundaries
 

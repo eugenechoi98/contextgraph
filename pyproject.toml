@@ -42,5 +42,8 @@ cgstudio = "contextgraph_studio.cli:app"
 [tool.setuptools.packages.find]
 include = ["contextgraph_studio*"]
 
+[tool.setuptools.package-data]
+"contextgraph_studio.resources" = ["*.yaml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

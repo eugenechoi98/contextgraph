@@ -273,6 +273,20 @@ The goal is to make the current working baseline safe for GitHub:
 
 This keeps the release baseline honest: users see what works now, what is optional, and what is explicitly deferred.
 
+## 2026-06-09: Package runtime defaults must not depend on repository cwd
+
+Phase 5B found that `task_strategies.yaml` was a runtime file but lived only under the repository-level `config/` directory.
+
+For editable installs this works because commands are usually run from the source checkout. For wheel installs, that would make `cgstudio retrieve` depend on the caller's current directory.
+
+The fix is limited to packaging:
+
+- add `contextgraph_studio.resources.task_strategies.yaml`
+- include it as package data
+- point the default setting at the installed package resource
+
+Users can still override `task_strategies_path` through settings, but the default wheel install now works from outside the source tree.
+
 This avoids mixing "recommended now", "fallback", and "future target" into one ambiguous embedding story.
 
 ## 2026-06-08: Index CLI should expose lightweight vector observability

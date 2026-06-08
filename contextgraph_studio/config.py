@@ -6,6 +6,12 @@ from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def default_task_strategies_path() -> Path:
+    """返回随安装包分发的默认任务策略配置。"""
+
+    return Path(__file__).with_name("resources") / "task_strategies.yaml"
+
+
 class Settings(BaseSettings):
     """统一管理运行参数。"""
 
@@ -31,7 +37,7 @@ class Settings(BaseSettings):
         ge=0,
         validation_alias=AliasChoices("SWEBENCH_MIN_FREE_BYTES", "CONTEXTGRAPH_SWEBENCH_MIN_FREE_BYTES"),
     )
-    task_strategies_path: Path = Field(default_factory=lambda: Path("config/task_strategies.yaml"))
+    task_strategies_path: Path = Field(default_factory=default_task_strategies_path)
     max_file_bytes: int = 512_000
     chunk_lines: int = 80
     chunk_overlap: int = 10

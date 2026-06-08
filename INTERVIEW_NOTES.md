@@ -62,3 +62,8 @@
 可以这样说：
 
 > 现有 `.venv` 里可能残留了之前实验装过的包，所以只用它跑测试不能证明新用户能装起来。clean install smoke 用仓库外的新环境重新 `pip install -e .[dev]`，就是为了验证依赖声明够不够完整，CLI 能不能靠公开安装步骤跑起来。
+
+## 2026-06-09 - 为什么 wheel 里要带 task_strategies.yaml
+可以这样说：
+
+> 源码目录里跑 CLI 时，`config/task_strategies.yaml` 在当前目录，所以问题不明显。但用户从 wheel 安装后，命令可能在任意目录执行，如果还靠仓库相对路径，就会找不到配置。把默认策略文件作为 package data 放进安装包，是为了让 wheel 安装后也能独立运行，不靠源码 checkout。

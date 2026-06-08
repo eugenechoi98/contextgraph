@@ -129,6 +129,49 @@ D:\contextgraph-clean-smoke\.venv\Scripts\cgstudio.exe index D:\contextgraph-stu
 
 Then retrieve using the `repo_id` printed by the fixture index command.
 
+## Packaging artifact smoke
+
+Phase 5B release-smoke directory:
+
+```text
+D:\contextgraph-release-smoke\phase5b
+```
+
+Build from the project venv:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install --upgrade build
+.\.venv\Scripts\python.exe -m build --outdir D:\contextgraph-release-smoke\phase5b\dist
+```
+
+Validated artifacts:
+
+- `contextgraph_studio-0.1.0-py3-none-any.whl`
+- `contextgraph_studio-0.1.0.tar.gz`
+
+Runtime package data:
+
+- `contextgraph_studio/resources/task_strategies.yaml`
+
+Wheel smoke uses a DB outside the repo:
+
+```powershell
+$env:CONTEXTGRAPH_DATABASE_PATH="D:\contextgraph-release-smoke\phase5b\data\wheel-smoke.sqlite"
+D:\contextgraph-release-smoke\phase5b\wheel-venv\Scripts\cgstudio.exe init-db
+D:\contextgraph-release-smoke\phase5b\wheel-venv\Scripts\cgstudio.exe index D:\contextgraph-release-smoke\phase5b\fixtures\sample_ts_repo
+```
+
+Local `uvx` wheel smoke:
+
+```powershell
+$env:UV_CACHE_DIR="D:\contextgraph-release-smoke\phase5b\uv-cache"
+$env:CONTEXTGRAPH_DATABASE_PATH="D:\contextgraph-release-smoke\phase5b\data\uvx-smoke.sqlite"
+uvx --from D:\contextgraph-release-smoke\phase5b\dist\contextgraph_studio-0.1.0-py3-none-any.whl cgstudio --help
+uvx --from D:\contextgraph-release-smoke\phase5b\dist\contextgraph_studio-0.1.0-py3-none-any.whl cgstudio init-db
+```
+
+Do not commit release-smoke directories, build caches, wheel/sdist outputs, or generated DBs.
+
 ## Current canonical DB
 
 - DB: `.data/contextgraph.db`
@@ -155,6 +198,7 @@ Then retrieve using the `repo_id` printed by the fixture index command.
 - Phase 4E-D -> three official instances ran in isolated SWE-bench cache with no canonical DB change
 - Phase 4E-D.1 -> Python module-level assignment chunks restored the Django critical hit without retrieval changes
 - Phase 5A -> README / MCP example / CI added under feature freeze; canonical DB SHA256 unchanged
+- Phase 5B -> wheel/sdist build and install smoke passed; `task_strategies.yaml` now ships as package data
 
 ## TypeScript / JavaScript parser scope
 

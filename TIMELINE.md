@@ -57,3 +57,4 @@
 - 2026-06-08: Ran a three-instance official SWE-bench Lite localization sample and classified the Django miss as parser/chunker coverage for module-level settings assignments
 - 2026-06-08: Added Python module-level assignment chunks, recovered Django SWE-bench localization to rank 7, and kept Astropy/Matplotlib regression hits
 - 2026-06-08: Entered Phase 5A, committed the Phase 4E-D.1 checkpoint, removed stale Phase 4B handoff draft, and started open-source readiness cleanup
+- 2026-06-09: Committed Phase 5A, added package data for task strategies, and validated wheel, sdist, MCP stdio, and uvx local wheel smoke

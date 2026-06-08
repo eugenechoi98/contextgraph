@@ -1,0 +1,48 @@
+task_types:
+  security_auth:
+    keywords: ["auth", "jwt", "token", "session", "login", "oauth", "permission", "role"]
+    priority_entity_types: ["api_route", "function", "class"]
+    priority_categories: ["source_code", "test"]
+    graph_expand_edge_types: ["calls", "imports"]
+    graph_hops: 2
+    bm25_weight: 0.4
+    vector_weight: 0.35
+    graph_weight: 0.25
+
+  bug_fix:
+    keywords: ["bug", "error", "exception", "crash", "fix", "issue"]
+    priority_entity_types: ["function", "method"]
+    graph_expand_edge_types: ["calls", "tests"]
+    graph_hops: 2
+    bm25_weight: 0.45
+    vector_weight: 0.35
+    graph_weight: 0.2
+
+  database:
+    keywords: ["database", "sql", "schema", "migration", "table", "index", "view", "column", "query"]
+    priority_entity_types: ["db_table", "db_view", "db_index", "function", "method"]
+    priority_categories: ["schema", "source_code", "config", "test", "doc"]
+    graph_expand_edge_types: ["calls", "imports"]
+    graph_hops: 1
+    bm25_weight: 0.4
+    vector_weight: 0.35
+    graph_weight: 0.25
+
+  configuration:
+    keywords: ["configuration", "config", "settings", "environment", "yaml", "json", "toml", "host", "port", "database"]
+    priority_entity_types: ["config_key", "function", "method"]
+    priority_categories: ["config", "source_code", "schema", "doc", "test"]
+    graph_expand_edge_types: ["calls", "imports"]
+    graph_hops: 1
+    bm25_weight: 0.4
+    vector_weight: 0.35
+    graph_weight: 0.25
+
+  general:
+    keywords: []
+    priority_entity_types: ["function", "class", "api_route"]
+    graph_expand_edge_types: ["calls", "imports"]
+    graph_hops: 1
+    bm25_weight: 0.35
+    vector_weight: 0.45
+    graph_weight: 0.2
