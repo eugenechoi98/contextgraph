@@ -97,11 +97,11 @@ Database and configuration task hints are now supported by the planner:
 
 These lanes only add candidates. They do not change BM25 scoring, RRF, graph traversal, token budget, or the public `ContextPack` schema.
 
-## SWE-bench Lite inspect
+## SWE-bench Lite inspect and localization
 
-The current SWE-bench support is a dry-run manifest layer only.
+The current SWE-bench support has two lightweight layers.
 
-It supports:
+Manifest inspect supports:
 
 - local `.json` / `.jsonl` loading
 - optional Hugging Face loading with explicit network opt-in
@@ -110,8 +110,6 @@ It supports:
 - expected and critical file manifest generation
 - JSON and Markdown output
 
-It does not clone repos, checkout commits, run Docker, index repos, retrieve context, or run the full benchmark.
-
 Example:
 
 ```powershell
@@ -119,6 +117,26 @@ Example:
   --dataset tests\fixtures\swebench_lite_sample.jsonl `
   --max-instances 4 `
   --output-dir eval\manifests\generated
+```
+
+Localization smoke supports:
+
+- isolated cache root
+- per-instance SQLite DB
+- disk-free gate before checkout
+- shallow fetch of a specific `base_commit`
+- `max_instances=1` by default, hard limit `3`
+- JSON and Markdown localization reports
+
+It does not apply patches, run Docker, run target repo tests, change retrieval algorithms, or run the full `300`-case benchmark.
+
+Example dry-run:
+
+```powershell
+.\.venv\Scripts\cgstudio.exe swebench-localize `
+  --manifest eval\manifests\generated\swebench_lite_manifest.json `
+  --cache-dir D:\contextgraph-swebench-cache `
+  --dry-run
 ```
 
 ## Recommended local vector model
@@ -166,7 +184,7 @@ These are current-machine smoke numbers only. They are not a general SLA.
 
 ## Current validation status
 
-- `pytest tests` -> `130 passed, 1 warning`
+- `pytest tests` -> `139 passed, 1 warning`
 - `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
 - offline CodeRankEmbed eval metadata now records `model_smoke_status = coderankembed_smoke_passed`
 - `cgstudio index tests\fixtures\sample_ts_repo` -> `files=7`, `chunks=20`, `entities=27`, `relations=45`
@@ -174,3 +192,5 @@ These are current-machine smoke numbers only. They are not a general SLA.
 - `cgstudio eval --dataset eval\fixtures\structured_golden.json --config bm25_only --config bm25_graph` -> `4 active cases`, `failed_case_count = 0`
 - latest Phase 4D.2 structured fixture smoke with consumer source files -> `files=10`, `chunks=37`, `entities=43`, `relations=38`, `parse_errors=2`
 - `cgstudio swebench-inspect --dataset tests\fixtures\swebench_lite_sample.jsonl --max-instances 4` -> `4 instances`, `4 critical files`, `1 excluded file`
+- `cgstudio swebench-localize --dry-run` -> no clone, no DB, no index, no retrieve
+- local Git fixture localization smoke -> critical file hit under isolated DB

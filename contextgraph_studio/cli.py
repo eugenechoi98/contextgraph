@@ -20,6 +20,7 @@ from contextgraph_studio.config import get_settings
 from contextgraph_studio.db import init_db
 from contextgraph_studio.eval.datasets.swebench_lite import inspect_swebench_lite
 from contextgraph_studio.eval.runner import run_eval
+from contextgraph_studio.eval.swebench_localization import run_swebench_localization
 from contextgraph_studio.graph.traversal import graph_search
 from contextgraph_studio.models.context_pack import RetrieveContextRequest
 from contextgraph_studio.models.scan import ScanRepoRequest
@@ -197,6 +198,56 @@ def cli_swebench_inspect(
         "instance_count": manifest.total_instances,
         "critical_file_count": sum(len(instance.critical_files) for instance in manifest.instances),
         "excluded_file_count": sum(len(instance.excluded_files) for instance in manifest.instances),
+    }
+    typer.echo(json.dumps(summary, ensure_ascii=False, indent=2))
+
+
+@app.command("swebench-localize")
+def cli_swebench_localize(
+    manifest: Annotated[Path, typer.Option("--manifest")],
+    cache_dir: Annotated[Path | None, typer.Option("--cache-dir")] = None,
+    output_dir: Annotated[Path | None, typer.Option("--output-dir")] = None,
+    max_instances: Annotated[int, typer.Option("--max-instances")] = 1,
+    instance_id: Annotated[list[str] | None, typer.Option("--instance-id")] = None,
+    config: Annotated[list[str] | None, typer.Option("--config")] = None,
+    allow_network: Annotated[bool, typer.Option("--allow-network")] = False,
+    min_free_bytes: Annotated[int | None, typer.Option("--min-free-bytes")] = None,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
+    max_tokens: Annotated[int | None, typer.Option("--max-tokens")] = None,
+) -> None:
+    """Run an isolated SWE-bench Lite localization smoke."""
+
+    settings = get_settings()
+    try:
+        result = run_swebench_localization(
+            settings,
+            manifest_path=manifest,
+            cache_dir=cache_dir,
+            output_dir=output_dir,
+            max_instances=max_instances,
+            instance_ids=set(instance_id or []) or None,
+            config_names=config,
+            allow_network=allow_network,
+            min_free_bytes=min_free_bytes,
+            dry_run=dry_run,
+            max_tokens=max_tokens,
+        )
+    except Exception as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    summary = {
+        "run_id": result.run_id,
+        "json_report_path": result.json_report_path,
+        "markdown_report_path": result.markdown_report_path,
+        "dry_run": result.dry_run,
+        "allow_network": result.allow_network,
+        "selected_instance_count": result.selected_instance_count,
+        "case_result_count": len(result.case_results),
+        "passed_case_count": result.passed_case_count,
+        "failed_case_count": result.failed_case_count,
+        "critical_hit_count": sum(1 for case in result.case_results if case.critical_file_hit),
+        "graph_hit_case_count": sum(1 for case in result.case_results if case.graph_hit_count > 0),
     }
     typer.echo(json.dumps(summary, ensure_ascii=False, indent=2))
 

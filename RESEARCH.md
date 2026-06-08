@@ -75,3 +75,9 @@
     - `problem_statement`
   - The current project implementation only builds a dry-run manifest from instance data and patches.
   - Full SWE-bench harness behavior such as repo checkout, patch application, tests, and Docker remains out of scope for Phase 4E-A.
+- 2026-06-08 Phase 4E-B implementation notes:
+  - SWE-bench localization is intentionally a smoke runner, not the official benchmark harness.
+  - The checkout manager uses shallow fetch of the requested `base_commit` and has no full-clone fallback.
+  - Network checkout is disabled by default; local tests use `file://` Git remotes created at runtime.
+  - Each instance uses its own SQLite DB under the SWE-bench cache root so canonical `.data/contextgraph.db` is not touched.
+  - Patch application, Docker, target repo tests, retrieval algorithm changes, parser changes, graph changes, and embedding changes remain out of scope.

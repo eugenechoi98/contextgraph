@@ -46,6 +46,7 @@ python -m venv .venv
 .\.venv\Scripts\cgstudio.exe index .
 .\.venv\Scripts\cgstudio.exe retrieve "verify token auth flow" --task-hint security_auth --max-tokens 8000 --repo-id 8bf02440-5d4e-5fa2-8916-a955c2c21fd2
 .\.venv\Scripts\cgstudio.exe eval --repo-id 8bf02440-5d4e-5fa2-8916-a955c2c21fd2 --dataset eval\fixtures\contextgraph_golden.json
+.\.venv\Scripts\cgstudio.exe swebench-localize --manifest eval\manifests\generated\swebench_lite_manifest.json --cache-dir D:\contextgraph-swebench-cache --dry-run
 .\.venv\Scripts\python.exe -m pytest tests
 ```
 
@@ -56,13 +57,14 @@ python -m venv .venv
 
 ## Current validation baseline
 
-- `pytest tests` -> `108 passed, 1 warning`
+- `pytest tests` -> `139 passed, 1 warning`
 - `cgstudio index .` -> `parse_errors = 0`
 - `cgstudio retrieve ...` -> BM25 + Graph works in default mode
 - `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
 - offline CodeRankEmbed eval metadata records `model_smoke_status = coderankembed_smoke_passed`
 - `cgstudio index tests\fixtures\sample_ts_repo` -> `files=7`, `chunks=20`, `entities=27`, `relations=45`
 - `cgstudio index tests\fixtures\sample_structured_repo` -> `files=7`, `chunks=27`, `entities=30`, `relations=23`, `parse_errors=2`
+- `cgstudio swebench-localize --dry-run` -> no clone, no DB, no index, no retrieve
 
 ## TypeScript / JavaScript parser scope
 
@@ -155,6 +157,12 @@ Rules:
 ## Cache and safety rules
 
 - Use the project venv Python: `.\.venv\Scripts\python.exe`
+- SWE-bench localization cache should stay outside tracked source paths, for example:
+  - `D:\contextgraph-swebench-cache`
+- SWE-bench localization DB is per instance:
+  - `<cache_dir>\db\<safe_instance_id>.sqlite`
+- SWE-bench checkout defaults to no network and requires explicit `--allow-network` for GitHub repos.
+- SWE-bench localization supports at most `3` instances per smoke run.
 - Keep model cache outside the repo, for example:
   - `D:\contextgraph-model-cache`
 - On Windows, redirect temp space off the system drive when doing the first download smoke:

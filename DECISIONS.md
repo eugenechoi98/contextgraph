@@ -77,6 +77,14 @@ Phase 4B.1 的最小实验选择是：
 - The current traversal only expands outgoing edges.
 
 This means the real failure mode is the combination of seed type, edge filtering, and directionality. For Phase 4B.2 we only expose that state in diagnostics. We do not change traversal direction, task-strategy edge types, graph seed policy, BM25 scoring, RRF, or token budget.
+
+## 2026-06-08: Phase 4E-B uses isolated SWE-bench checkout and DB state
+
+SWE-bench case localization can touch external repos and create many index records, so it must not write into the canonical workspace DB.
+
+This phase uses a separate cache root, per-instance SQLite DB files, an explicit disk-free gate, and no-network-by-default checkout. The checkout path only supports a GitHub `owner/repo` slug when network is explicitly allowed, or a `file://` local fixture remote for tests.
+
+The runner only performs localization smoke. It does not apply patches, run target repo tests, run Docker, change retrieval algorithms, change graph traversal, or modify the public `ContextPack` schema.
 ## 2026-06-08: Graph expectation is a characterization label, not a scoring gate
 
 Phase 4B.3 expands the first-party golden dataset and adds `graph_expectation` with three values:

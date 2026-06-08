@@ -22,6 +22,15 @@ class Settings(BaseSettings):
         default_factory=lambda: Path(".data/contextgraph.db"),
         validation_alias=AliasChoices("CGSTUDIO_DB_PATH", "CONTEXTGRAPH_DATABASE_PATH"),
     )
+    swebench_cache_dir: Path = Field(
+        default_factory=lambda: Path.home() / ".cache" / "contextgraph" / "swebench",
+        validation_alias=AliasChoices("SWEBENCH_CACHE_DIR", "CONTEXTGRAPH_SWEBENCH_CACHE_DIR"),
+    )
+    swebench_min_free_bytes: int = Field(
+        default=5 * 1024 * 1024 * 1024,
+        ge=0,
+        validation_alias=AliasChoices("SWEBENCH_MIN_FREE_BYTES", "CONTEXTGRAPH_SWEBENCH_MIN_FREE_BYTES"),
+    )
     task_strategies_path: Path = Field(default_factory=lambda: Path("config/task_strategies.yaml"))
     max_file_bytes: int = 512_000
     chunk_lines: int = 80
