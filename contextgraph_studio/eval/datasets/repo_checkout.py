@@ -85,21 +85,29 @@ def check_disk_gate(cache_dir: Path, min_free_bytes: int) -> int:
     return free_bytes
 
 
+def preview_checkout_path(repo: str, base_commit: str, instance_id: str, cache_dir: Path) -> Path:
+    """计算 checkout 目标路径，不创建目录。"""
+
+    cache_root = cache_dir.expanduser().resolve()
+    checkout_path = (
+        cache_root
+        / "repos"
+        / safe_repo_slug(repo)
+        / base_commit.lower()
+        / safe_instance_id(instance_id)
+        / "checkout"
+    ).resolve()
+    _ensure_within(checkout_path, cache_root)
+    return checkout_path
+
+
 def checkout_repo_at_commit(request: CheckoutRequest) -> CheckoutResult:
     """浅 fetch 指定 base_commit，不做完整 clone fallback。"""
 
     cache_root = request.cache_dir.expanduser().resolve()
     free_bytes = check_disk_gate(cache_root, request.min_free_bytes)
     remote_url = _resolve_remote_url(request.repo, request.allow_network)
-    checkout_path = (
-        cache_root
-        / "repos"
-        / safe_repo_slug(request.repo)
-        / request.base_commit.lower()
-        / safe_instance_id(request.instance_id)
-        / "checkout"
-    ).resolve()
-    _ensure_within(checkout_path, cache_root)
+    checkout_path = preview_checkout_path(request.repo, request.base_commit, request.instance_id, cache_root)
 
     if checkout_path.exists():
         current = _git(["rev-parse", "HEAD"], cwd=checkout_path).strip()

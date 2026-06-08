@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from time import perf_counter
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -12,7 +13,13 @@ from contextgraph_studio.application.scan_repo import ScanRepoService
 from contextgraph_studio.config import Settings
 from contextgraph_studio.domain import utc_now_epoch
 from contextgraph_studio.eval.configs import resolve_eval_configs
-from contextgraph_studio.eval.datasets.repo_checkout import CheckoutRequest, checkout_repo_at_commit, safe_instance_id
+from contextgraph_studio.eval.datasets.repo_checkout import (
+    CheckoutRequest,
+    check_disk_gate,
+    checkout_repo_at_commit,
+    preview_checkout_path,
+    safe_instance_id,
+)
 from contextgraph_studio.eval.datasets.swebench_lite import SweBenchGroundTruth, SweBenchManifest
 from contextgraph_studio.eval.metrics import DEFAULT_KS, dedupe_files
 from contextgraph_studio.models.scan import ScanRepoRequest
@@ -47,6 +54,17 @@ class SweBenchLocalizationCaseResult(BaseModel):
     retrieval_strategy: list[str] = Field(default_factory=list)
     route_diagnostics: dict[str, dict[str, object]] = Field(default_factory=dict)
     graph_hit_count: int = 0
+    checkout_reused: bool = False
+    disk_free_bytes: int | None = None
+    min_free_bytes: int | None = None
+    checkout_elapsed_ms: int | None = None
+    index_elapsed_ms: int | None = None
+    retrieve_elapsed_ms: int | None = None
+    total_elapsed_ms: int | None = None
+    checkout_size_bytes: int | None = None
+    database_size_bytes: int | None = None
+    index_stats: dict[str, int | str] = Field(default_factory=dict)
+    miss_analysis: str | None = None
     error: str | None = None
 
 
@@ -107,13 +125,25 @@ def run_swebench_localization(
         raise ValueError(f"SWE-bench localization smoke does not enable vector configs yet: {unsupported}")
 
     case_results: list[SweBenchLocalizationCaseResult] = []
+    effective_min_free_bytes = min_free_bytes if min_free_bytes is not None else settings.swebench_min_free_bytes
     for instance in selected:
         db_path = _db_path(cache_root, instance.instance_id)
         for config in configs:
             if dry_run:
-                case_results.append(_dry_case(instance, config.name, cache_root, db_path))
+                case_results.append(
+                    _dry_case(
+                        instance,
+                        config.name,
+                        cache_root,
+                        db_path,
+                        allow_network=allow_network,
+                        min_free_bytes=effective_min_free_bytes,
+                    )
+                )
                 continue
+            total_started = perf_counter()
             try:
+                checkout_started = perf_counter()
                 checkout = checkout_repo_at_commit(
                     CheckoutRequest(
                         repo=instance.repo,
@@ -121,13 +151,15 @@ def run_swebench_localization(
                         instance_id=instance.instance_id,
                         cache_dir=cache_root,
                         allow_network=allow_network,
-                        min_free_bytes=min_free_bytes
-                        if min_free_bytes is not None
-                        else settings.swebench_min_free_bytes,
+                        min_free_bytes=effective_min_free_bytes,
                     )
                 )
+                checkout_elapsed_ms = _elapsed_ms(checkout_started)
                 runtime_settings = _runtime_settings(settings, db_path, graph_enabled=config.graph_enabled)
+                index_started = perf_counter()
                 scan = ScanRepoService(runtime_settings).execute(ScanRepoRequest(path=checkout.checkout_path))
+                index_elapsed_ms = _elapsed_ms(index_started)
+                retrieve_started = perf_counter()
                 pack, debug = retrieve_context_debug(
                     instance.query,
                     runtime_settings,
@@ -137,6 +169,7 @@ def run_swebench_localization(
                     trace=True,
                     max_tokens=max_tokens,
                 )
+                retrieve_elapsed_ms = _elapsed_ms(retrieve_started)
                 retrieved_files = dedupe_files([item.file_path for item in pack.required + pack.supporting])
                 case_results.append(
                     _scored_case(
@@ -151,11 +184,28 @@ def run_swebench_localization(
                         trace_id=pack.trace_id,
                         retrieval_strategy=pack.retrieval_strategy,
                         route_diagnostics=dict(debug.get("route_diagnostics", {})),
+                        checkout_reused=checkout.reused,
+                        disk_free_bytes=checkout.disk_free_bytes,
+                        min_free_bytes=effective_min_free_bytes,
+                        checkout_elapsed_ms=checkout_elapsed_ms,
+                        index_elapsed_ms=index_elapsed_ms,
+                        retrieve_elapsed_ms=retrieve_elapsed_ms,
+                        total_elapsed_ms=_elapsed_ms(total_started),
+                        checkout_size_bytes=directory_size(Path(checkout.checkout_path)),
+                        database_size_bytes=file_size(db_path),
+                        index_stats={key: value for key, value in scan.stats.items() if isinstance(value, (int, str))},
                     )
                 )
             except Exception as exc:
                 case_results.append(
-                    _error_case(instance, config.name, db_path=db_path, error=str(exc))
+                    _error_case(
+                        instance,
+                        config.name,
+                        db_path=db_path,
+                        error=str(exc),
+                        min_free_bytes=effective_min_free_bytes,
+                        total_elapsed_ms=_elapsed_ms(total_started),
+                    )
                 )
 
     report_root.mkdir(parents=True, exist_ok=True)
@@ -194,8 +244,8 @@ def render_localization_markdown(result: SweBenchLocalizationRunResult) -> str:
         f"- selected_instance_count: `{result.selected_instance_count}`",
         f"- configs: `{', '.join(result.config_names)}`",
         "",
-        "| instance | config | status | critical_hit | recall@5 | graph_hits | error |",
-        "| --- | --- | --- | --- | ---: | ---: | --- |",
+        "| instance | config | status | critical_hit | recall@5 | mrr | graph_hits | first_rank | error |",
+        "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |",
     ]
     for case in result.case_results:
         lines.append(
@@ -207,11 +257,38 @@ def render_localization_markdown(result: SweBenchLocalizationRunResult) -> str:
                     case.status,
                     str(case.critical_file_hit).lower(),
                     f"{case.recall_at_k.get(5, 0.0):.3f}",
+                    f"{case.reciprocal_rank:.3f}",
                     str(case.graph_hit_count),
+                    str(_first_relevant_rank(case)),
                     (case.error or "").replace("|", "/"),
                 ]
             )
             + " |"
+        )
+    lines.extend(["", "## Case Analysis", ""])
+    for case in result.case_results:
+        lines.extend(
+            [
+                f"### {case.instance_id} / {case.config_name}",
+                "",
+                f"- repo: `{case.repo}`",
+                f"- base_commit: `{case.base_commit}`",
+                f"- checkout_path: `{case.checkout_path}`",
+                f"- database_path: `{case.database_path}`",
+                f"- checkout_reused: `{str(case.checkout_reused).lower()}`",
+                f"- checkout_size_bytes: `{case.checkout_size_bytes}`",
+                f"- database_size_bytes: `{case.database_size_bytes}`",
+                f"- checkout_elapsed_ms: `{case.checkout_elapsed_ms}`",
+                f"- index_elapsed_ms: `{case.index_elapsed_ms}`",
+                f"- retrieve_elapsed_ms: `{case.retrieve_elapsed_ms}`",
+                f"- total_elapsed_ms: `{case.total_elapsed_ms}`",
+                f"- index_stats: `{json.dumps(case.index_stats, ensure_ascii=False, sort_keys=True)}`",
+                f"- expected_files: `{json.dumps(case.expected_files, ensure_ascii=False)}`",
+                f"- critical_files: `{json.dumps(case.critical_files, ensure_ascii=False)}`",
+                f"- retrieved_files: `{json.dumps(case.retrieved_files, ensure_ascii=False)}`",
+                f"- miss_analysis: `{case.miss_analysis}`",
+                "",
+            ]
         )
     return "\n".join(lines) + "\n"
 
@@ -249,18 +326,29 @@ def _dry_case(
     config_name: str,
     cache_root: Path,
     db_path: Path,
+    *,
+    allow_network: bool,
+    min_free_bytes: int,
 ) -> SweBenchLocalizationCaseResult:
+    free_bytes = check_disk_gate(cache_root, min_free_bytes)
+    checkout_path = preview_checkout_path(instance.repo, instance.base_commit, instance.instance_id, cache_root)
     return SweBenchLocalizationCaseResult(
         instance_id=instance.instance_id,
         repo=instance.repo,
         base_commit=instance.base_commit,
         config_name=config_name,
         status="dry_run",
-        checkout_path=str(cache_root / "repos" / safe_instance_id(instance.instance_id) / "checkout"),
+        checkout_path=str(checkout_path),
         database_path=str(db_path),
         expected_files=instance.expected_files,
         critical_files=instance.critical_files,
-        error="dry_run: checkout, DB init, indexing, and retrieval were skipped.",
+        disk_free_bytes=free_bytes,
+        min_free_bytes=min_free_bytes,
+        miss_analysis="dry_run only; checkout, DB init, indexing, and retrieval were skipped.",
+        error=(
+            "dry_run: checkout, DB init, indexing, and retrieval were skipped; "
+            f"network_mode={'enabled' if allow_network else 'disabled'}."
+        ),
     )
 
 
@@ -270,6 +358,8 @@ def _error_case(
     *,
     db_path: Path,
     error: str,
+    min_free_bytes: int | None = None,
+    total_elapsed_ms: int | None = None,
 ) -> SweBenchLocalizationCaseResult:
     return SweBenchLocalizationCaseResult(
         instance_id=instance.instance_id,
@@ -280,6 +370,10 @@ def _error_case(
         database_path=str(db_path),
         expected_files=instance.expected_files,
         critical_files=instance.critical_files,
+        min_free_bytes=min_free_bytes,
+        total_elapsed_ms=total_elapsed_ms,
+        database_size_bytes=file_size(db_path),
+        miss_analysis="unknown; localization did not complete.",
         error=error,
     )
 
@@ -297,6 +391,16 @@ def _scored_case(
     trace_id: str | None,
     retrieval_strategy: list[str],
     route_diagnostics: dict[str, dict[str, object]],
+    checkout_reused: bool,
+    disk_free_bytes: int,
+    min_free_bytes: int,
+    checkout_elapsed_ms: int,
+    index_elapsed_ms: int,
+    retrieve_elapsed_ms: int,
+    total_elapsed_ms: int,
+    checkout_size_bytes: int,
+    database_size_bytes: int,
+    index_stats: dict[str, int | str],
 ) -> SweBenchLocalizationCaseResult:
     expected_set = set(instance.expected_files)
     critical_set = set(instance.critical_files)
@@ -311,6 +415,7 @@ def _scored_case(
         precision_at_k[k] = hit_count / len(top_files) if top_files else 0.0
     first_rank = next((index + 1 for index, path in enumerate(retrieved_files) if path in expected_set), None)
     graph_debug = route_diagnostics.get("graph", {})
+    graph_hit_count = int(graph_debug.get("hit_count", 0) or 0)
     return SweBenchLocalizationCaseResult(
         instance_id=instance.instance_id,
         repo=instance.repo,
@@ -334,5 +439,62 @@ def _scored_case(
         trace_id=trace_id,
         retrieval_strategy=retrieval_strategy,
         route_diagnostics=route_diagnostics,
-        graph_hit_count=int(graph_debug.get("hit_count", 0) or 0),
+        graph_hit_count=graph_hit_count,
+        checkout_reused=checkout_reused,
+        disk_free_bytes=disk_free_bytes,
+        min_free_bytes=min_free_bytes,
+        checkout_elapsed_ms=checkout_elapsed_ms,
+        index_elapsed_ms=index_elapsed_ms,
+        retrieve_elapsed_ms=retrieve_elapsed_ms,
+        total_elapsed_ms=total_elapsed_ms,
+        checkout_size_bytes=checkout_size_bytes,
+        database_size_bytes=database_size_bytes,
+        index_stats=index_stats,
+        miss_analysis=_miss_analysis(
+            retrieved_files=retrieved_files,
+            expected_files=instance.expected_files,
+            critical_hit=all(path in retrieved_files for path in critical_set) if critical_set else True,
+            graph_hit_count=graph_hit_count,
+        ),
     )
+
+
+def directory_size(path: Path) -> int:
+    """统计目录大小，目录不存在时返回 0。"""
+
+    if not path.exists():
+        return 0
+    if path.is_file():
+        return path.stat().st_size
+    return sum(item.stat().st_size for item in path.rglob("*") if item.is_file())
+
+
+def file_size(path: Path) -> int:
+    """统计文件大小，文件不存在时返回 0。"""
+
+    return path.stat().st_size if path.exists() and path.is_file() else 0
+
+
+def _elapsed_ms(started: float) -> int:
+    return int((perf_counter() - started) * 1000)
+
+
+def _first_relevant_rank(case: SweBenchLocalizationCaseResult) -> int | None:
+    expected = set(case.expected_files)
+    return next((index + 1 for index, path in enumerate(case.retrieved_files) if path in expected), None)
+
+
+def _miss_analysis(
+    *,
+    retrieved_files: list[str],
+    expected_files: list[str],
+    critical_hit: bool,
+    graph_hit_count: int,
+) -> str:
+    if critical_hit:
+        if graph_hit_count > 0:
+            return "critical file hit; graph participated, so no obvious miss in this smoke."
+        return "critical file hit; graph did not add hits, but BM25 localization was sufficient."
+    if any(path in set(expected_files) for path in retrieved_files):
+        return "partial expected-file hit; miss may be token budget or ranking depth."
+    return "no expected-file hit; likely candidate recall, query lexical mismatch, parser coverage, or graph relation coverage."

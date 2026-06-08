@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import shlex
+from urllib.parse import urlencode
+from urllib.request import urlopen
 from pathlib import Path
 from typing import Any, Literal
 
@@ -130,7 +132,11 @@ def load_swebench_lite_hf(
     try:
         from datasets import load_dataset
     except ImportError as exc:
-        raise RuntimeError("Install the optional 'swebench' extra to use the Hugging Face loader.") from exc
+        return _load_swebench_lite_hf_rows_api(
+            split=split,
+            max_instances=max_instances,
+            instance_ids=instance_ids,
+        )
 
     try:
         dataset = load_dataset(OFFICIAL_DATASET, split=split, cache_dir=str(cache_dir) if cache_dir else None)
@@ -145,6 +151,48 @@ def load_swebench_lite_hf(
             raise ValueError("max_instances must be greater than 0.")
         records = records[:max_instances]
     return [SweBenchLiteInstance.model_validate(row) for row in records]
+
+
+def _load_swebench_lite_hf_rows_api(
+    *,
+    split: str,
+    max_instances: int | None,
+    instance_ids: set[str] | None,
+) -> list[SweBenchLiteInstance]:
+    """Use the official Hugging Face datasets-server rows API without optional dependencies."""
+
+    if max_instances is not None and max_instances <= 0:
+        raise ValueError("max_instances must be greater than 0.")
+    limit = max_instances or 100
+    rows: list[dict[str, Any]] = []
+    offset = 0
+    while len(rows) < limit:
+        length = min(100, limit - len(rows))
+        query = urlencode(
+            {
+                "dataset": OFFICIAL_DATASET,
+                "config": "default",
+                "split": split,
+                "offset": offset,
+                "length": length,
+            }
+        )
+        url = f"https://datasets-server.huggingface.co/rows?{query}"
+        try:
+            with urlopen(url, timeout=60) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except Exception as exc:
+            raise RuntimeError(f"Failed to load {OFFICIAL_DATASET} via Hugging Face rows API: {exc}") from exc
+        page_rows = [item["row"] for item in payload.get("rows", [])]
+        if instance_ids:
+            page_rows = [row for row in page_rows if str(row.get("instance_id", "")) in instance_ids]
+        rows.extend(page_rows)
+        if len(payload.get("rows", [])) < length or not payload.get("rows"):
+            break
+        offset += length
+        if instance_ids and len(rows) < limit and offset >= int(payload.get("num_rows_total", 0) or 0):
+            break
+    return [SweBenchLiteInstance.model_validate(row) for row in rows[:limit]]
 
 
 def extract_changed_files_from_patch(

@@ -81,3 +81,14 @@
   - Network checkout is disabled by default; local tests use `file://` Git remotes created at runtime.
   - Each instance uses its own SQLite DB under the SWE-bench cache root so canonical `.data/contextgraph.db` is not touched.
   - Patch application, Docker, target repo tests, retrieval algorithm changes, parser changes, graph changes, and embedding changes remain out of scope.
+- 2026-06-08 Phase 4E-C official single-instance smoke:
+  - Official instance used:
+    - `astropy__astropy-12907`
+    - repo `astropy/astropy`
+    - base commit `d16bfe05a744909de4b27f5875fe0d4ed41ce607`
+  - Hugging Face data loading used the official datasets-server rows API fallback because the local venv did not have the optional `datasets` package installed and this phase did not install dependencies.
+  - GitHub shallow fetch by exact base commit succeeded without full clone fallback.
+  - The first isolated index surfaced duplicate stable relation IDs; the minimal fix now ignores duplicate relation inserts and keeps relation counts accurate.
+  - Final localization completed but missed `astropy/modeling/separable.py` under both `bm25_only` and `bm25_graph`.
+  - Graph produced no hits for this case, so it did not improve ranking.
+  - Canonical DB SHA256 stayed unchanged.

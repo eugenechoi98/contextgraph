@@ -57,7 +57,7 @@ python -m venv .venv
 
 ## Current validation baseline
 
-- `pytest tests` -> `139 passed, 1 warning`
+- `pytest tests` -> `140 passed, 1 warning`
 - `cgstudio index .` -> `parse_errors = 0`
 - `cgstudio retrieve ...` -> BM25 + Graph works in default mode
 - `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
@@ -65,6 +65,7 @@ python -m venv .venv
 - `cgstudio index tests\fixtures\sample_ts_repo` -> `files=7`, `chunks=20`, `entities=27`, `relations=45`
 - `cgstudio index tests\fixtures\sample_structured_repo` -> `files=7`, `chunks=27`, `entities=30`, `relations=23`, `parse_errors=2`
 - `cgstudio swebench-localize --dry-run` -> no clone, no DB, no index, no retrieve
+- official `astropy__astropy-12907` smoke -> shallow checkout succeeded, isolated index/retrieve completed, canonical DB SHA256 unchanged
 
 ## TypeScript / JavaScript parser scope
 
@@ -163,6 +164,9 @@ Rules:
   - `<cache_dir>\db\<safe_instance_id>.sqlite`
 - SWE-bench checkout defaults to no network and requires explicit `--allow-network` for GitHub repos.
 - SWE-bench localization supports at most `3` instances per smoke run.
+- Phase 4E-C official smoke used exactly `1` instance with `--allow-network`.
+- Official smoke cache path:
+  - `D:\contextgraph-swebench-cache`
 - Keep model cache outside the repo, for example:
   - `D:\contextgraph-model-cache`
 - On Windows, redirect temp space off the system drive when doing the first download smoke:

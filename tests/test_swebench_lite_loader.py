@@ -8,6 +8,7 @@ from contextgraph_studio.eval.datasets.swebench_lite import (
     load_swebench_lite_hf,
     load_swebench_lite_local,
 )
+import contextgraph_studio.eval.datasets.swebench_lite as swebench_lite_module
 
 
 FIXTURE = Path("tests/fixtures/swebench_lite_sample.jsonl")
@@ -54,7 +55,7 @@ def test_hf_loader_defaults_to_no_network() -> None:
         load_swebench_lite_hf()
 
 
-def test_hf_loader_reports_missing_optional_dependency(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_hf_loader_falls_back_to_rows_api_without_optional_dependency(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     real_import = builtins.__import__
 
     def fake_import(name, *args, **kwargs):  # type: ignore[no-untyped-def]
@@ -62,7 +63,43 @@ def test_hf_loader_reports_missing_optional_dependency(monkeypatch) -> None:  # 
             raise ImportError("missing datasets")
         return real_import(name, *args, **kwargs)
 
-    monkeypatch.setattr(builtins, "__import__", fake_import)
+    class FakeResponse:
+        def __enter__(self):  # type: ignore[no-untyped-def]
+            return self
 
-    with pytest.raises(RuntimeError, match="swebench"):
-        load_swebench_lite_hf(allow_network=True, max_instances=1)
+        def __exit__(self, *args):  # type: ignore[no-untyped-def]
+            return None
+
+        def read(self) -> bytes:
+            return json.dumps(
+                {
+                    "rows": [
+                        {
+                            "row": {
+                                "instance_id": "official__one",
+                                "repo": "owner/project",
+                                "base_commit": "a" * 40,
+                                "problem_statement": "Fix refresh token routing.",
+                                "patch": (
+                                    "diff --git a/src/auth.py b/src/auth.py\n"
+                                    "--- a/src/auth.py\n"
+                                    "+++ b/src/auth.py\n"
+                                    "@@ -1 +1 @@\n"
+                                    "-old\n"
+                                    "+new\n"
+                                ),
+                            }
+                        }
+                    ],
+                    "num_rows_total": 1,
+                },
+                ensure_ascii=False,
+            ).encode("utf-8")
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    monkeypatch.setattr(swebench_lite_module, "urlopen", lambda *args, **kwargs: FakeResponse())
+
+    instances = load_swebench_lite_hf(allow_network=True, max_instances=1)
+
+    assert len(instances) == 1
+    assert instances[0].instance_id == "official__one"

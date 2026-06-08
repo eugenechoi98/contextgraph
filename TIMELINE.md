@@ -50,3 +50,4 @@
 - 2026-06-08: Added `cgstudio swebench-inspect`, synthetic SWE-bench fixture, and manifest CLI smoke without cloning repos, checking out commits, running Docker, or writing the canonical DB
 - 2026-06-08: Passed Phase 4E-A targeted tests, synthetic manifest smoke, and full validation `130 passed, 1 warning`
 - 2026-06-08: Added Phase 4E-B isolated SWE-bench checkout manager, localization smoke runner, CLI entry, and local Git fixture coverage
+- 2026-06-08: Ran Phase 4E-C official `astropy__astropy-12907` single-instance smoke, fixed duplicate relation insert handling, and confirmed canonical DB isolation

@@ -155,16 +155,17 @@ def _insert_relation(
     edge_type: str,
     weight: float = 1.0,
     meta_json: str | None = None,
-) -> None:
+) -> bool:
     relation_id = _stable_id(scan_run_id, "relation", from_entity_id, to_entity_id, edge_type)
-    connection.execute(
+    cursor = connection.execute(
         """
-        INSERT INTO relations (
+        INSERT OR IGNORE INTO relations (
             id, scan_run_id, from_entity_id, to_entity_id, edge_type, is_directed, weight, meta_json
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (relation_id, scan_run_id, from_entity_id, to_entity_id, edge_type, 1, weight, meta_json),
     )
+    return cursor.rowcount > 0
 
 
 def _insert_file_row(
@@ -370,7 +371,7 @@ def _copy_previous_snapshot(
     relation_count = 0
     for row in old_relations:
         if row["from_entity_id"] in old_to_new_entity_ids and row["to_entity_id"] in old_to_new_entity_ids:
-            _insert_relation(
+            inserted = _insert_relation(
                 connection,
                 new_scan_run_id,
                 old_to_new_entity_ids[row["from_entity_id"]],
@@ -379,7 +380,7 @@ def _copy_previous_snapshot(
                 weight=row["weight"],
                 meta_json=row["meta_json"],
             )
-            relation_count += 1
+            relation_count += 1 if inserted else 0
     return 1, len(old_entities), chunk_count, relation_count
 
 
@@ -467,14 +468,14 @@ def _index_source_file(
             child_key = entity.symbol_name or entity.display_name
             parent_key = entity.parent_symbol_name or source_file.path
             if child_key in entity_ids and parent_key in entity_ids:
-                _insert_relation(
+                inserted = _insert_relation(
                     connection,
                     scan_run_id,
                     entity_ids[parent_key],
                     entity_ids[child_key],
                     "contains",
                 )
-                stats.relations += 1
+                stats.relations += 1 if inserted else 0
 
     chunks = chunk_source_file(source_file, settings, parse_result)
 

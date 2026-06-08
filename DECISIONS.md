@@ -85,6 +85,12 @@ SWE-bench case localization can touch external repos and create many index recor
 This phase uses a separate cache root, per-instance SQLite DB files, an explicit disk-free gate, and no-network-by-default checkout. The checkout path only supports a GitHub `owner/repo` slug when network is explicitly allowed, or a `file://` local fixture remote for tests.
 
 The runner only performs localization smoke. It does not apply patches, run target repo tests, run Docker, change retrieval algorithms, change graph traversal, or modify the public `ContextPack` schema.
+
+## 2026-06-08: Phase 4E-C keeps official smoke dependency-light
+
+The official single-instance smoke needed Hugging Face data, but the local venv did not have the optional `datasets` package installed and this phase should not install dependencies. The loader therefore falls back to the official Hugging Face datasets-server rows API.
+
+The official Astropy checkout also exposed duplicate stable `relations.id` inserts during indexing. The fix is limited to ignoring duplicate relation inserts and counting only rows actually inserted. This prevents index failure without adding relation types, changing graph traversal, or changing retrieval ranking.
 ## 2026-06-08: Graph expectation is a characterization label, not a scoring gate
 
 Phase 4B.3 expands the first-party golden dataset and adds `graph_expectation` with three values:
