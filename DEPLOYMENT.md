@@ -265,11 +265,47 @@ Structured eval smoke:
 
 Latest full validation:
 
-- `pytest tests` -> `111 passed, 1 warning`
+- `pytest tests` -> `114 passed, 1 warning`
 
 Latest canonical regression index:
 
 - repo_id `8bf02440-5d4e-5fa2-8916-a955c2c21fd2`
-- scan_run_id `008a0b47-659f-4243-a20e-052322c4da0f`
+- scan_run_id `c1615878-dba7-46f7-9357-a69588a62db8`
 - `parse_errors=0`
 - default mode still does not auto-download embedding models
+
+## Structured relation audit smoke
+
+Phase 4D.2 adds read-only diagnostics for possible structured graph edges.
+
+It does not materialize:
+
+- `uses_table`
+- `configures`
+
+Latest structured fixture smoke after adding source consumers:
+
+- repo_id `4d8c11cb-8735-5b60-bb71-924909bcf77e`
+- scan_run_id `f77a6437-d3b7-402f-aa95-38618122b36c`
+- `files=10`
+- `chunks=37`
+- `entities=43`
+- `relations=38`
+- `parse_errors=2`
+
+Structured relation audit:
+
+- `uses_table`: `4 candidates`, `3 safe`, `1 skipped`
+- `configures`: `11 candidates`, `4 safe`, `7 skipped`
+
+Structured eval comparison:
+
+- dataset `eval\fixtures\structured_golden.json`
+- `bm25_only`: `MRR=0.6458`, `Recall@5=1.0`, `critical_file_hit_rate=1.0`
+- `bm25_graph`: `MRR=0.6458`, `Recall@5=1.0`, `critical_file_hit_rate=1.0`
+
+Conclusion:
+
+- structured candidate lanes are enough for the current fixture cases
+- graph does not add measurable value in this fixture yet
+- new structured edges should wait for a real retrieval gap

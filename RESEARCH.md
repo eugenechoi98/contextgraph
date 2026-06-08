@@ -56,3 +56,9 @@
   - They are supplemental lanes only; the general BM25 lane still runs and original BM25 scores are not rewritten.
   - Lane evidence is exposed in internal route diagnostics under `bm25_lanes`.
   - Structured eval is kept in `eval/fixtures/structured_golden.json` instead of the canonical golden dataset so fixture cases do not depend on the canonical repo scan.
+- 2026-06-08 Phase 4D.2 implementation notes:
+  - Structured relation diagnostics are read-only in this phase.
+  - `uses_table` candidates are limited to static SQL strings and explicit table-name constants.
+  - Natural-language strings such as `users can update their profile` are recorded as skipped candidates, not materialized relations.
+  - `configures` candidates are limited to static access such as `config["database"]["host"]` and `.get(...)` chains.
+  - The audit found no current fixture retrieval gap that requires a new graph edge, so no edge was added.

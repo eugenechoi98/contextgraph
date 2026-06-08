@@ -21,7 +21,7 @@ def test_structured_fixture_indexes_and_retrieves_without_sensitive_values(tmp_p
     settings = make_settings(tmp_path)
     result = index_repository(FIXTURE_REPO, settings)
 
-    assert result["file_count"] == 7
+    assert result["file_count"] == 10
     assert result["chunk_count"] >= 7
     assert result["parse_error_count"] >= 2
     assert result["vector_index_enabled"] is False

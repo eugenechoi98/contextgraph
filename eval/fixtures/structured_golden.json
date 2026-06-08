@@ -14,7 +14,8 @@
         "schema.sql"
       ],
       "helpful_files": [
-        "migration.sql"
+        "migration.sql",
+        "src/user_repository.py"
       ],
       "intent_tags": [
         "database",
@@ -38,7 +39,8 @@
         "schema.sql"
       ],
       "helpful_files": [
-        "migration.sql"
+        "migration.sql",
+        "src/user_repository.py"
       ],
       "intent_tags": [
         "database",
@@ -62,7 +64,8 @@
       ],
       "helpful_files": [
         "config.json",
-        "pyproject.toml"
+        "pyproject.toml",
+        "src/config_loader.py"
       ],
       "intent_tags": [
         "configuration",
@@ -87,7 +90,8 @@
       ],
       "helpful_files": [
         "settings.yaml",
-        "pyproject.toml"
+        "pyproject.toml",
+        "src/config_loader.py"
       ],
       "intent_tags": [
         "configuration",

@@ -326,3 +326,24 @@ Reason:
 - the canonical golden dataset targets the canonical repo
 - the structured fixture is a standalone parser/retrieval smoke repo
 - mixing both in one default dataset would make eval runs depend on which repos happened to be indexed in the local DB
+
+## 2026-06-08: Defer structured cross-file edges until a real retrieval gap appears
+
+Phase 4D.2 audited potential structured graph edges before materializing them.
+
+Result:
+
+- `uses_table` is detectable with simple static rules in the fixture
+- `configures` is also detectable, but has more ambiguity from repeated keys and natural-language matches
+- current structured retrieval already returns both the structured file and the consumer source file
+
+Decision:
+
+- do not implement `uses_table` yet
+- do not implement `configures` yet
+- keep the read-only diagnostics and audit report as evidence for a later round
+
+Reason:
+
+- a new graph edge should solve a real retrieval gap, not just add graph activity
+- adding an edge now would not improve the measured structured fixture eval

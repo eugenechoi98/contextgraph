@@ -248,3 +248,44 @@
   - scan_run_id `008a0b47-659f-4243-a20e-052322c4da0f`
   - `parse_errors=0`
   - default mode still does not auto-download embedding models
+
+## Phase 4D.2 Note
+
+- Phase 4D.1 was checkpointed as commit `256e33a` (`feat(retrieval): add structured task candidate lanes`).
+- Added read-only structured relation diagnostics:
+  - `contextgraph_studio/graph/structured_diagnostics.py`
+  - `tests/test_structured_relation_diagnostics.py`
+- Expanded the structured fixture with small source consumers:
+  - `src/user_repository.py`
+  - `src/config_loader.py`
+  - `src/server.py`
+- Added audit report:
+  - `eval/analysis/structured_relation_value_audit.md`
+- Audit result:
+  - `uses_table` candidates: `4 total`, `3 safe`, `1 skipped`
+  - `configures` candidates: `11 total`, `4 safe`, `7 skipped`
+- Retrieval gap conclusion:
+  - database queries already hit both structured SQL files and `src/user_repository.py`
+  - configuration queries already hit both config files and `src/config_loader.py`
+  - Graph still does not contribute, but there is no current bad case that needs a new edge
+- Phase 4D.2 did not implement `uses_table` or `configures`.
+- Fresh structured fixture smoke:
+  - repo_id `4d8c11cb-8735-5b60-bb71-924909bcf77e`
+  - scan_run_id `f77a6437-d3b7-402f-aa95-38618122b36c`
+  - `files=10`
+  - `chunks=37`
+  - `entities=43`
+  - `relations=38`
+  - `parse_errors=2`
+- Structured eval smoke:
+  - dataset `eval/fixtures/structured_golden.json`
+  - configs `bm25_only`, `bm25_graph`
+  - `active_case_count=4`
+  - `failed_case_count=0`
+  - both configs: `MRR=0.6458`, `Recall@5=1.0`, `critical_file_hit_rate=1.0`
+- Latest full validation is now `114 passed, 1 warning`.
+- Latest canonical regression scan is:
+  - repo_id `8bf02440-5d4e-5fa2-8916-a955c2c21fd2`
+  - scan_run_id `c1615878-dba7-46f7-9357-a69588a62db8`
+  - `parse_errors=0`
+  - default mode still does not auto-download embedding models

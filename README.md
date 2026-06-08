@@ -87,6 +87,7 @@ Current limits:
 - config arrays use a simple `[]` path notation such as `servers[].host`
 - this phase does not add `uses_table` or `configures`
 - sensitive config values are masked and are not stored as raw chunk text
+- structured relation diagnostics exist, but they are read-only and do not materialize graph edges yet
 
 Database and configuration task hints are now supported by the planner:
 
@@ -141,9 +142,10 @@ These are current-machine smoke numbers only. They are not a general SLA.
 
 ## Current validation status
 
-- `pytest tests` -> `111 passed, 1 warning`
+- `pytest tests` -> `114 passed, 1 warning`
 - `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
 - offline CodeRankEmbed eval metadata now records `model_smoke_status = coderankembed_smoke_passed`
 - `cgstudio index tests\fixtures\sample_ts_repo` -> `files=7`, `chunks=20`, `entities=27`, `relations=45`
 - `cgstudio index tests\fixtures\sample_structured_repo` -> `files=7`, `chunks=29`, `entities=32`, `relations=25`, `parse_errors=2`
 - `cgstudio eval --dataset eval\fixtures\structured_golden.json --config bm25_only --config bm25_graph` -> `4 active cases`, `failed_case_count = 0`
+- latest Phase 4D.2 structured fixture smoke with consumer source files -> `files=10`, `chunks=37`, `entities=43`, `relations=38`, `parse_errors=2`

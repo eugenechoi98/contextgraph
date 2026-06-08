@@ -41,3 +41,7 @@
 - 2026-06-08: Added `eval/fixtures/structured_golden.json` and `tests/test_structured_task_strategies.py` for structured planner, lane diagnostics, and sensitive value regression coverage
 - 2026-06-08: Passed structured fixture eval smoke with `4 active cases`, `failed_case_count=0`, then restored canonical repo with `parse_errors=0`
 - 2026-06-08: Updated full validation to `111 passed, 1 warning`
+- 2026-06-08: Committed Phase 4D.1 checkpoint as `256e33a` and entered Phase 4D.2 for structured relation value audit
+- 2026-06-08: Added structured source consumer fixture files plus read-only relation diagnostics for `uses_table` and `configures` candidates
+- 2026-06-08: Published `eval/analysis/structured_relation_value_audit.md`; concluded that no new edge should be implemented yet because structured fixture retrieval already returns consumer source
+- 2026-06-08: Passed Phase 4D.2 targeted tests, structured eval smoke, canonical regression index, and full validation `114 passed, 1 warning`
