@@ -107,6 +107,14 @@ Dotted natural-language tokens should not be passed into SQLite FTS5 as syntax. 
 Fallback remains only for exceptional no-FTS cases, but it now ranks by deterministic lexical overlap across path, symbol, and chunk text. This fixes the official Astropy miss without changing BM25 weights, RRF, Graph, Token Budget, parser behavior, embeddings, or query expansion.
 
 The index reuse performance problem remains deferred because it is a separate indexing efficiency issue, not the retrieval correctness bug being closed here.
+
+## 2026-06-08: Phase 4E-C.3 optimizes only unchanged snapshot relation reuse
+
+Astropy profiling showed the slow path was not runner-level duplicate indexing. The runner indexes once per instance and then reuses that scan for later configs.
+
+The real bottleneck was indexer-level snapshot reuse: each unchanged file scanned the previous scan's full `relations` table. The fix is limited to unchanged snapshots, where all file/entity/chunk rows are copied into a new scan_run and safe old-to-new entity mappings allow relations to be copied in one bulk pass.
+
+If any file is new, changed, or deleted, relation rebuild stays conservative and full-snapshot based. This preserves graph semantics and avoids mixing a performance fix with retrieval or parser behavior changes.
 ## 2026-06-08: Graph expectation is a characterization label, not a scoring gate
 
 Phase 4B.3 expands the first-party golden dataset and adds `graph_expectation` with three values:

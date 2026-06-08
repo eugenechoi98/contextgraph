@@ -2,7 +2,10 @@
 
 import json
 import sqlite3
+from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from contextgraph_studio.config import Settings
@@ -28,6 +31,28 @@ from contextgraph_studio.services.intake import scan_repository
 def _stable_id(*parts: object) -> str:
     seed = "::".join(str(part) for part in parts)
     return str(uuid5(NAMESPACE_URL, seed))
+
+
+@dataclass(slots=True)
+class SnapshotCopyResult:
+    """记录单个复用文件复制到新快照后的映射。"""
+
+    file_count: int
+    entity_count: int
+    chunk_count: int
+    old_to_new_entity_ids: dict[str, str]
+
+
+@contextmanager
+def _timed_stage(stats: IndexingStats, stage: str):
+    """累加索引阶段耗时，便于 profile 和报告复用。"""
+
+    started = perf_counter()
+    try:
+        yield
+    finally:
+        elapsed_ms = int((perf_counter() - started) * 1000)
+        stats.stage_timings_ms[stage] = stats.stage_timings_ms.get(stage, 0) + elapsed_ms
 
 
 def resolve_repo_id(repo_root: Path) -> str:
@@ -97,9 +122,18 @@ def update_scan_run(
                     "parse_errors_reused": stats.parse_errors_reused,
                     "parse_errors_total_snapshot": stats.parse_errors_total_snapshot,
                     "reused_files": stats.reused_files,
+                    "reused_file_count": stats.reused_files,
+                    "parsed_file_count": stats.new_files + stats.changed_files,
                     "changed_files": stats.changed_files,
                     "new_files": stats.new_files,
                     "deleted_files": stats.deleted_files,
+                    "reused_entity_count": stats.reused_entities,
+                    "generated_entity_count": stats.generated_entities,
+                    "reused_chunk_count": stats.reused_chunks,
+                    "generated_chunk_count": stats.generated_chunks,
+                    "reused_relation_count": stats.reused_relations,
+                    "generated_relation_count": stats.generated_relations,
+                    "stage_timings_ms": stats.stage_timings_ms,
                     "vector_index_enabled": stats.vector_index_enabled,
                     "embedding_provider": stats.embedding_provider,
                     "embedding_model": stats.embedding_model,
@@ -340,13 +374,13 @@ def _insert_chunk_row(
     return chunk_id
 
 
-def _copy_previous_snapshot(
+def _copy_previous_file_snapshot(
     connection: sqlite3.Connection,
     previous_file_row: sqlite3.Row,
     new_scan_run_id: str,
     repo_id: str,
-) -> tuple[int, int, int, int]:
-    """把未变化文件复制到新快照。"""
+) -> SnapshotCopyResult:
+    """把未变化文件的 file/entity/chunk 复制到新快照。"""
 
     source_file = SourceFile(
         repo_id=repo_id,
@@ -416,28 +450,74 @@ def _copy_previous_snapshot(
         )
         chunk_count += 1
 
-    old_relations = connection.execute(
+    return SnapshotCopyResult(
+        file_count=1,
+        entity_count=len(old_entities),
+        chunk_count=chunk_count,
+        old_to_new_entity_ids=old_to_new_entity_ids,
+    )
+
+
+def _bulk_copy_reusable_relations(
+    connection: sqlite3.Connection,
+    previous_scan_run_id: str,
+    new_scan_run_id: str,
+    old_to_new_entity_ids: dict[str, str],
+) -> int:
+    """一次性复制两端实体都安全复用的 relations。"""
+
+    if not old_to_new_entity_ids:
+        return 0
+    rows = connection.execute(
         """
-        SELECT *
+        SELECT from_entity_id, to_entity_id, edge_type, weight, meta_json
         FROM relations
         WHERE scan_run_id = ?
         """,
-        (previous_file_row["scan_run_id"],),
+        (previous_scan_run_id,),
     ).fetchall()
-    relation_count = 0
-    for row in old_relations:
-        if row["from_entity_id"] in old_to_new_entity_ids and row["to_entity_id"] in old_to_new_entity_ids:
-            inserted = _insert_relation(
-                connection,
+    relation_rows: list[tuple[str, str, str, str, str, int, float, str | None]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for row in rows:
+        new_from = old_to_new_entity_ids.get(row["from_entity_id"])
+        new_to = old_to_new_entity_ids.get(row["to_entity_id"])
+        if new_from is None or new_to is None:
+            continue
+        key = (new_from, new_to, row["edge_type"])
+        if key in seen:
+            continue
+        seen.add(key)
+        relation_rows.append(
+            (
+                _stable_id(new_scan_run_id, "relation", new_from, new_to, row["edge_type"]),
                 new_scan_run_id,
-                old_to_new_entity_ids[row["from_entity_id"]],
-                old_to_new_entity_ids[row["to_entity_id"]],
+                new_from,
+                new_to,
                 row["edge_type"],
-                weight=row["weight"],
-                meta_json=row["meta_json"],
+                1,
+                row["weight"],
+                row["meta_json"],
             )
-            relation_count += 1 if inserted else 0
-    return 1, len(old_entities), chunk_count, relation_count
+        )
+    if not relation_rows:
+        return 0
+    before = connection.execute(
+        "SELECT COUNT(*) FROM relations WHERE scan_run_id = ?",
+        (new_scan_run_id,),
+    ).fetchone()[0]
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO relations (
+            id, scan_run_id, from_entity_id, to_entity_id, edge_type, is_directed, weight, meta_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        relation_rows,
+    )
+    after = connection.execute(
+        "SELECT COUNT(*) FROM relations WHERE scan_run_id = ?",
+        (new_scan_run_id,),
+    ).fetchone()[0]
+    return int(after - before)
 
 
 def _build_doc_entities_and_chunks(
@@ -586,37 +666,47 @@ def index_repository(repo_root: Path, settings: Settings) -> dict[str, int | str
     init_db(settings)
     repo_root = repo_root.resolve()
     with connect(settings.database_path) as connection:
-        repo_id = upsert_repository(connection, repo_root)
-        scan_run_id = create_scan_run(connection, repo_id)
-        previous_scan = get_latest_successful_scan(connection, repo_id)
+        stats = IndexingStats()
+        with _timed_stage(stats, "resolve repository"):
+            repo_id = upsert_repository(connection, repo_root)
+            scan_run_id = create_scan_run(connection, repo_id)
+            previous_scan = get_latest_successful_scan(connection, repo_id)
         connection.commit()
 
-        stats = IndexingStats()
         try:
-            source_files = scan_repository(repo_root, repo_id, settings)
+            with _timed_stage(stats, "scan files"):
+                source_files = scan_repository(repo_root, repo_id, settings)
             stats.vector_index_enabled = settings.vector_index_enabled
-            previous_files = get_previous_files(connection, previous_scan["id"]) if previous_scan else {}
-            reusable_parse_errors = get_reusable_parse_errors(connection, repo_id) if previous_scan else {}
+            with _timed_stage(stats, "resolve previous successful scan"):
+                previous_files = get_previous_files(connection, previous_scan["id"]) if previous_scan else {}
+            with _timed_stage(stats, "compare unchanged files"):
+                reusable_parse_errors = get_reusable_parse_errors(connection, repo_id) if previous_scan else {}
             current_paths = {source_file.path for source_file in source_files}
             stats.files = len(source_files)
             stats.deleted_files = len(set(previous_files) - current_paths)
+            old_to_new_entity_ids: dict[str, str] = {}
+            previous_scan_run_id = str(previous_scan["id"]) if previous_scan else None
 
             for source_file in sorted(source_files, key=lambda item: item.path):
                 previous = previous_files.get(source_file.path)
                 if previous is None:
                     stats.new_files += 1
-                    partial = _index_source_file(connection, source_file, settings, scan_run_id)
+                    with _timed_stage(stats, "parse changed files"):
+                        partial = _index_source_file(connection, source_file, settings, scan_run_id)
                 elif previous["content_hash"] == source_file.content_hash:
-                    copied_files, copied_entities, copied_chunks, copied_relations = _copy_previous_snapshot(
-                        connection,
-                        previous,
-                        scan_run_id,
-                        repo_id,
-                    )
-                    stats.reused_files += copied_files
-                    stats.entities += copied_entities
-                    stats.chunks += copied_chunks
-                    stats.relations += copied_relations
+                    with _timed_stage(stats, "copy reused files/entities/chunks"):
+                        copied = _copy_previous_file_snapshot(
+                            connection,
+                            previous,
+                            scan_run_id,
+                            repo_id,
+                        )
+                    old_to_new_entity_ids.update(copied.old_to_new_entity_ids)
+                    stats.reused_files += copied.file_count
+                    stats.reused_entities += copied.entity_count
+                    stats.reused_chunks += copied.chunk_count
+                    stats.entities += copied.entity_count
+                    stats.chunks += copied.chunk_count
                     reused_errors = reusable_parse_errors.get(
                         (source_file.path, source_file.content_hash),
                         [],
@@ -626,8 +716,12 @@ def index_repository(repo_root: Path, settings: Settings) -> dict[str, int | str
                     continue
                 else:
                     stats.changed_files += 1
-                    partial = _index_source_file(connection, source_file, settings, scan_run_id)
+                    with _timed_stage(stats, "parse changed files"):
+                        partial = _index_source_file(connection, source_file, settings, scan_run_id)
 
+                stats.generated_entities += partial.entities
+                stats.generated_chunks += partial.chunks
+                stats.generated_relations += partial.relations
                 stats.entities += partial.entities
                 stats.chunks += partial.chunks
                 stats.relations += partial.relations
@@ -652,12 +746,30 @@ def index_repository(repo_root: Path, settings: Settings) -> dict[str, int | str
                 stats.embedding_count = stats.chunks
                 stats.embedding_reused_count = vector_stats.reused_embeddings
                 stats.embedding_generated_count = vector_stats.generated_embeddings
-            stats.relations = build_relations_for_scan(connection, repo_id, scan_run_id, source_files)
-            sync_fts_for_latest_scan(connection, repo_id, scan_run_id)
-            update_scan_run(connection, scan_run_id, "done", stats)
+            has_changed_snapshot_shape = bool(stats.new_files or stats.changed_files or stats.deleted_files)
+            if previous_scan_run_id and not has_changed_snapshot_shape:
+                with _timed_stage(stats, "copy reused relations"):
+                    stats.reused_relations = _bulk_copy_reusable_relations(
+                        connection,
+                        previous_scan_run_id,
+                        scan_run_id,
+                        old_to_new_entity_ids,
+                    )
+                stats.relations += stats.reused_relations
+            else:
+                with _timed_stage(stats, "rebuild changed relations"):
+                    rebuilt_relations = build_relations_for_scan(connection, repo_id, scan_run_id, source_files)
+                stats.generated_relations = rebuilt_relations
+                stats.reused_relations = 0
+                stats.relations = rebuilt_relations
+            with _timed_stage(stats, "sync FTS"):
+                sync_fts_for_latest_scan(connection, repo_id, scan_run_id)
+            with _timed_stage(stats, "finalize scan_run"):
+                update_scan_run(connection, scan_run_id, "done", stats)
             connection.commit()
         except Exception as exc:
-            update_scan_run(connection, scan_run_id, "failed", stats, error_message=str(exc))
+            with _timed_stage(stats, "finalize scan_run"):
+                update_scan_run(connection, scan_run_id, "failed", stats, error_message=str(exc))
             connection.commit()
             raise
 
@@ -670,6 +782,15 @@ def index_repository(repo_root: Path, settings: Settings) -> dict[str, int | str
         "parse_error_count_current_scan": stats.parse_errors_current_scan,
         "parse_error_count_reused": stats.parse_errors_reused,
         "parse_error_count_total_snapshot": stats.parse_errors_total_snapshot,
+        "reused_file_count": stats.reused_files,
+        "parsed_file_count": stats.new_files + stats.changed_files,
+        "reused_entity_count": stats.reused_entities,
+        "generated_entity_count": stats.generated_entities,
+        "reused_chunk_count": stats.reused_chunks,
+        "generated_chunk_count": stats.generated_chunks,
+        "reused_relation_count": stats.reused_relations,
+        "generated_relation_count": stats.generated_relations,
+        "stage_timings_ms": stats.stage_timings_ms,
         "vector_index_enabled": stats.vector_index_enabled,
         "embedding_provider": stats.embedding_provider,
         "embedding_model": stats.embedding_model,

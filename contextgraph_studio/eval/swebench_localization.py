@@ -64,7 +64,7 @@ class SweBenchLocalizationCaseResult(BaseModel):
     total_elapsed_ms: int | None = None
     checkout_size_bytes: int | None = None
     database_size_bytes: int | None = None
-    index_stats: dict[str, int | str] = Field(default_factory=dict)
+    index_stats: dict[str, object] = Field(default_factory=dict)
     miss_analysis: str | None = None
     error: str | None = None
 
@@ -162,7 +162,11 @@ def run_swebench_localization(
             scan = ScanRepoService(index_settings).execute(ScanRepoRequest(path=checkout.checkout_path))
             index_elapsed_ms = _elapsed_ms(index_started)
             checkout_size_bytes = directory_size(Path(checkout.checkout_path))
-            index_stats = {key: value for key, value in scan.stats.items() if isinstance(value, (int, str))}
+            index_stats = {
+                key: value
+                for key, value in scan.stats.items()
+                if isinstance(value, (int, str, bool, dict))
+            }
 
             for config_index, config in enumerate(configs):
                 runtime_settings = _runtime_settings(settings, db_path, graph_enabled=config.graph_enabled)
@@ -411,7 +415,7 @@ def _scored_case(
     total_elapsed_ms: int,
     checkout_size_bytes: int,
     database_size_bytes: int,
-    index_stats: dict[str, int | str],
+    index_stats: dict[str, object],
 ) -> SweBenchLocalizationCaseResult:
     expected_set = set(instance.expected_files)
     critical_set = set(instance.critical_files)

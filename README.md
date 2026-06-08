@@ -146,6 +146,7 @@ Latest official single-instance smoke:
 - checkout: shallow fetch of `d16bfe05a744909de4b27f5875fe0d4ed41ce607`
 - isolated DB: `D:\contextgraph-swebench-cache\db\astropy__astropy-12907.sqlite`
 - result after FTS safety fix: `astropy/modeling/separable.py` is rank 1 under both `bm25_only` and `bm25_graph`
+- unchanged index reuse after performance fix: about `180s` in direct profile and under `5 min` in localization smoke
 - boundary: no Docker, no patch apply, no target repo tests, no embedding download, no full benchmark
 
 ## Recommended local vector model

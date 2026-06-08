@@ -68,6 +68,7 @@ python -m venv .venv
 - official `astropy__astropy-12907` smoke -> shallow checkout succeeded, isolated index/retrieve completed, canonical DB SHA256 unchanged
 - Phase 4E-C.1 -> one checkout and one index per instance, then one retrieve per config
 - Phase 4E-C.2 -> FTS query safety fix keeps dotted tokens out of raw MATCH syntax
+- Phase 4E-C.3 -> unchanged index reuse avoids per-file relation full scans and stays under 5 minutes on the official Astropy single instance
 
 ## TypeScript / JavaScript parser scope
 
