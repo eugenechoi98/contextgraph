@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "contextgraph-studio": {
+      "command": "<absolute-path-to-cgstudio>",
+      "args": ["mcp"]
+    }
+  }
+}

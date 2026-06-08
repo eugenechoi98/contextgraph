@@ -39,6 +39,16 @@ python -m venv .venv
 .\.venv\Scripts\cgstudio.exe serve --host 127.0.0.1 --port 8000
 ```
 
+## Linux / macOS setup
+
+```bash
+python -m venv .venv
+./.venv/bin/python -m pip install -e '.[dev]'
+./.venv/bin/cgstudio init-db
+./.venv/bin/cgstudio index .
+./.venv/bin/cgstudio retrieve "verify token auth flow"
+```
+
 ## Common commands
 
 ```powershell
@@ -50,6 +60,75 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pytest tests
 ```
 
+## MCP stdio
+
+```powershell
+.\.venv\Scripts\cgstudio.exe mcp
+```
+
+Client config example:
+
+```text
+examples/mcp/claude_desktop_config.json
+```
+
+The example intentionally uses `<absolute-path-to-cgstudio>` instead of a machine-specific path. Replace it locally before using it with a client.
+
+Validated scope:
+
+- MCP stdio protocol integration is covered by the official Python MCP SDK tests.
+- Claude Code / Cursor style client config is documented, but client-specific smoke depends on local installation.
+
+## GitHub Actions CI
+
+Workflow:
+
+```text
+.github/workflows/ci.yml
+```
+
+Current CI scope:
+
+- OS: `ubuntu-latest`
+- Python: `3.11`
+- install: `python -m pip install -e '.[dev]'`
+- test: `python -m pytest tests`
+
+CI environment keeps vector/model behavior disabled:
+
+```env
+VECTOR_INDEX_ENABLED=false
+HYBRID_VECTOR_ENABLED=false
+EMBEDDING_LOCAL_FILES_ONLY=true
+EMBEDDING_TRUST_REMOTE_CODE=false
+```
+
+CI must not download CodeRankEmbed, load SWE-bench from network, clone third-party benchmark repos, run Docker, run target repo tests, or write large caches.
+
+## Clean install smoke
+
+Use a directory outside this repository:
+
+```powershell
+python -m venv D:\contextgraph-clean-smoke\.venv
+D:\contextgraph-clean-smoke\.venv\Scripts\python.exe -m pip install --upgrade pip
+D:\contextgraph-clean-smoke\.venv\Scripts\python.exe -m pip install -e "D:\contextgraph-studio[dev]"
+```
+
+Use an isolated DB for the smoke:
+
+```powershell
+$env:CONTEXTGRAPH_DATA_DIR="D:\contextgraph-clean-smoke\.data"
+$env:CONTEXTGRAPH_DATABASE_PATH="D:\contextgraph-clean-smoke\.data\contextgraph.db"
+$env:VECTOR_INDEX_ENABLED="false"
+$env:HYBRID_VECTOR_ENABLED="false"
+D:\contextgraph-clean-smoke\.venv\Scripts\cgstudio.exe --help
+D:\contextgraph-clean-smoke\.venv\Scripts\cgstudio.exe init-db
+D:\contextgraph-clean-smoke\.venv\Scripts\cgstudio.exe index D:\contextgraph-studio\tests\fixtures\sample_ts_repo
+```
+
+Then retrieve using the `repo_id` printed by the fixture index command.
+
 ## Current canonical DB
 
 - DB: `.data/contextgraph.db`
@@ -57,7 +136,11 @@ python -m venv .venv
 
 ## Current validation baseline
 
-- `pytest tests` -> `148 passed, 1 warning`
+- targeted Phase 5A regression -> `23 passed, 1 warning`
+- `pytest tests` -> `158 passed, 1 warning`
+- clean install MCP/API regression -> `4 passed, 1 warning`
+- clean install fixture index -> `files=7`, `chunks=20`, `entities=27`, `relations=45`, `parse_errors=1`
+- clean install fixture retrieve -> BM25 + Graph ContextPack returned from isolated DB
 - `cgstudio index .` -> `parse_errors = 0`
 - `cgstudio retrieve ...` -> BM25 + Graph works in default mode
 - `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
@@ -71,6 +154,7 @@ python -m venv .venv
 - Phase 4E-C.3 -> unchanged index reuse avoids per-file relation full scans and stays under 5 minutes on the official Astropy single instance
 - Phase 4E-D -> three official instances ran in isolated SWE-bench cache with no canonical DB change
 - Phase 4E-D.1 -> Python module-level assignment chunks restored the Django critical hit without retrieval changes
+- Phase 5A -> README / MCP example / CI added under feature freeze; canonical DB SHA256 unchanged
 
 ## TypeScript / JavaScript parser scope
 
@@ -163,6 +247,7 @@ Rules:
 ## Cache and safety rules
 
 - Use the project venv Python: `.\.venv\Scripts\python.exe`
+- Default commands do not execute target repo code, install target repo dependencies, run target repo tests, apply patches, run Docker, or download embeddings.
 - SWE-bench localization cache should stay outside tracked source paths, for example:
   - `D:\contextgraph-swebench-cache`
 - SWE-bench localization DB is per instance:
@@ -180,6 +265,7 @@ Rules:
   - `HF_HOME`
   - `SENTENCE_TRANSFORMERS_HOME`
 - Do not write model cache, temp files, or eval reports into Git-tracked paths.
+- Do not commit `.env`, local DBs, generated reports, model caches, benchmark caches, third-party checkouts, or clean-smoke directories.
 
 ## Why `trust_remote_code` needs care
 

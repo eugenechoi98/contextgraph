@@ -259,6 +259,20 @@ Phase 4B closes with four clearly separated local states:
 - MiniLM: lightweight fallback when users need a smaller semantic option
 - nomic-embed-code: deferred high-resource target, not validated on this workstation
 
+## 2026-06-08: Phase 5A freezes features before open-source readiness
+
+Phase 5A does not add retrieval, parser, graph, embedding, benchmark, frontend, or LLM features.
+
+The goal is to make the current working baseline safe for GitHub:
+
+- README becomes user-facing instead of phase-history-heavy
+- MCP setup is documented with placeholders, not local absolute paths
+- CI runs only lightweight no-model tests
+- clean install smoke proves the package does not rely on the existing `.venv`
+- generated DBs, reports, caches, local checkouts, model files, and secrets remain untracked
+
+This keeps the release baseline honest: users see what works now, what is optional, and what is explicitly deferred.
+
 This avoids mixing "recommended now", "fallback", and "future target" into one ambiguous embedding story.
 
 ## 2026-06-08: Index CLI should expose lightweight vector observability

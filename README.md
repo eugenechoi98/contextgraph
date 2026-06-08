@@ -1,220 +1,223 @@
 # ContextGraph Studio
 
-ContextGraph Studio is a local retrieval stack for AI coding agents. The canonical workspace is `D:\contextgraph-studio`.
+ContextGraph Studio is local context-retrieval infrastructure for AI coding agents.
 
-## What works now
+It indexes a repository, builds searchable code/document chunks, and returns a structured `ContextPack` through CLI, FastAPI, or MCP. It is not a general RAG chatbot and it does not include a chat UI.
 
-- Repository indexing with `files / entities / chunks / traces / embeddings / relations / eval_runs`
-- Python plus minimal TypeScript / JavaScript parsing for `.ts`, `.tsx`, `.js`, and `.jsx`
-- Minimal structured parsing for `.sql`, `.json`, `.yaml`, `.yml`, and `.toml`
-- BM25 retrieval
-- Optional graph retrieval
-- Optional vector retrieval
-- RRF fusion
-- Golden-dataset eval
+Default mode does not require an LLM API key, does not download an embedding model, and does not require `trust_remote_code`.
 
-## Default mode
+## What It Is
 
-Default startup is still the safe no-model path:
+ContextGraph Studio helps coding agents find the files, symbols, traces, and graph neighbors that matter for a development task.
 
-```env
-VECTOR_INDEX_ENABLED=false
-HYBRID_VECTOR_ENABLED=false
+Main entry points:
+
+- CLI: `cgstudio index`, `cgstudio retrieve`, `cgstudio eval`
+- API: FastAPI routes for scan, retrieve, trace, and health
+- MCP: stdio tools for agent clients
+
+## Why It Exists
+
+Large coding tasks often fail because the agent misses the right files before it starts editing. ContextGraph Studio focuses on that earlier step: building a reproducible local index and returning a compact context pack that an agent can use.
+
+## Core Capabilities
+
+- Repository scanner with intake exclusions for eval fixtures, reports, temp files, caches, and generated outputs
+- SQLite storage for files, entities, chunks, traces, eval runs, embeddings, and relations
+- FTS5 BM25 retrieval
+- Source-code, schema, and config candidate lanes
+- Python AST parser, including module-level static assignment chunks
+- TypeScript / TSX / JavaScript / JSX Tree-sitter parser
+- SQL parser and JSON / YAML / TOML config parser
+- Optional graph retrieval, weighted RRF fusion, and token budgeting
+- Optional local vector search
+- CLI, FastAPI, and MCP stdio integration
+- Golden-dataset eval and lightweight SWE-bench Lite localization smoke
+
+## Architecture Overview
+
+```text
+repository scan
+  -> source classification
+  -> parser layer
+  -> structure-aware chunks
+  -> SQLite / FTS5 / optional embeddings / graph relations
+  -> BM25 / optional vector / optional graph recall
+  -> weighted RRF
+  -> token budget
+  -> ContextPack
 ```
 
-That means:
+`files`, `entities`, and `chunks` are the content source of truth. `chunks_fts`, `embeddings`, `relations`, `traces`, and `eval_runs` are derived or supporting layers.
 
-- no embedding model download
-- no `trust_remote_code` requirement
-- BM25 + Graph can still run
+## Quick Start
 
-## Quick start
+Windows PowerShell:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .[dev]
 .\.venv\Scripts\cgstudio.exe init-db
 .\.venv\Scripts\cgstudio.exe index .
-.\.venv\Scripts\cgstudio.exe retrieve "verify token auth flow" --task-hint security_auth --max-tokens 8000 --repo-id 8bf02440-5d4e-5fa2-8916-a955c2c21fd2
+.\.venv\Scripts\cgstudio.exe retrieve "verify token auth flow"
 ```
 
-## TypeScript / JavaScript support
+Linux / macOS:
 
-The current MVP parser loop supports:
+```bash
+python -m venv .venv
+./.venv/bin/python -m pip install -e '.[dev]'
+./.venv/bin/cgstudio init-db
+./.venv/bin/cgstudio index .
+./.venv/bin/cgstudio retrieve "verify token auth flow"
+```
 
-- `.ts`
-- `.tsx`
-- `.js`
-- `.jsx`
+## CLI Usage
 
-Current extracted entities:
-
-- `module`
-- `class`
-- `function`
-- `method`
-- `api_route`
-
-Current extracted relations:
-
-- `contains`
-- `imports`
-- `calls`
-- `route_to_handler`
-
-Route extraction is intentionally narrow. It only covers clear static Express-like patterns such as `router.post("/login", loginHandler)`.
-
-## SQL and config support
-
-The current structured parser loop also supports:
-
-- `.sql`
-- `.json`
-- `.yaml`
-- `.yml`
-- `.toml`
-
-Current extracted structured entities:
-
-- `db_table`
-- `db_view`
-- `db_index`
-- `config_key`
-
-Current limits:
-
-- SQL only covers small `CREATE` statement parsing
-- config arrays use a simple `[]` path notation such as `servers[].host`
-- this phase does not add `uses_table` or `configures`
-- sensitive config values are masked and are not stored as raw chunk text
-- structured relation diagnostics exist, but they are read-only and do not materialize graph edges yet
-
-Database and configuration task hints are now supported by the planner:
-
-- `task_hint=database` prioritizes schema files and can run a bounded `schema` BM25 candidate lane
-- `task_hint=configuration` prioritizes config files and can run a bounded `config` BM25 candidate lane
-- obvious database/configuration keywords can classify the task when no explicit hint is supplied
-
-These lanes only add candidates. They do not change BM25 scoring, RRF, graph traversal, token budget, or the public `ContextPack` schema.
-
-## SWE-bench Lite inspect and localization
-
-The current SWE-bench support has two lightweight layers.
-
-Manifest inspect supports:
-
-- local `.json` / `.jsonl` loading
-- optional Hugging Face loading with explicit network opt-in
-- patch changed-file extraction
-- generated / lockfile exclusion
-- expected and critical file manifest generation
-- JSON and Markdown output
-
-Example:
+Common commands:
 
 ```powershell
-.\.venv\Scripts\cgstudio.exe swebench-inspect `
-  --dataset tests\fixtures\swebench_lite_sample.jsonl `
-  --max-instances 4 `
-  --output-dir eval\manifests\generated
+.\.venv\Scripts\cgstudio.exe init-db
+.\.venv\Scripts\cgstudio.exe index .
+.\.venv\Scripts\cgstudio.exe retrieve "update login route token verification" --task-hint api_endpoint --max-tokens 4000
+.\.venv\Scripts\cgstudio.exe get-trace <trace-id>
+.\.venv\Scripts\cgstudio.exe serve --host 127.0.0.1 --port 8000
 ```
 
-Localization smoke supports:
+Debug commands are also available for BM25, vector, and graph search.
 
-- isolated cache root
-- per-instance SQLite DB
-- disk-free gate before checkout
-- shallow fetch of a specific `base_commit`
-- `max_instances=1` by default, hard limit `3`
-- JSON and Markdown localization reports
+## MCP Integration
 
-It does not apply patches, run Docker, run target repo tests, change retrieval algorithms, or run the full `300`-case benchmark.
+ContextGraph Studio exposes a stdio MCP server:
 
-Example dry-run:
+```powershell
+.\.venv\Scripts\cgstudio.exe mcp
+```
+
+Supported MCP tools:
+
+- `retrieve_context`
+- `scan_repo`
+- `get_trace`
+
+Example client config:
+
+- [examples/mcp/claude_desktop_config.json](examples/mcp/claude_desktop_config.json)
+
+Replace the `command` value with the absolute path to your local `cgstudio` executable.
+
+MCP stdio protocol integration is tested with the official Python MCP SDK. Claude Code, Cursor, and other MCP-capable clients can use the same tools, but client-specific setup depends on your local installation.
+
+## Optional Local Vector Search
+
+Default mode is BM25 + Graph and performs no model download:
+
+```env
+VECTOR_INDEX_ENABLED=false
+HYBRID_VECTOR_ENABLED=false
+```
+
+Recommended local code-specialized vector baseline:
+
+- model: `nomic-ai/CodeRankEmbed`
+- revision: `3c4b60807d71f79b43f3c4363786d9493691f8b1`
+- cache location: outside this repository
+- requires explicit `EMBEDDING_TRUST_REMOTE_CODE=true`
+
+Lightweight fallback:
+
+- `sentence-transformers/all-MiniLM-L6-v2`
+
+Deferred high-resource target:
+
+- `nomic-ai/nomic-embed-code`
+
+## Eval
+
+Run the local golden dataset:
+
+```powershell
+.\.venv\Scripts\cgstudio.exe eval --repo-id <repo-id> --dataset eval\fixtures\contextgraph_golden.json
+```
+
+Eval records route diagnostics so reports can distinguish requested, executed, and participating retrieval routes.
+
+## SWE-bench Lite Localization
+
+ContextGraph Studio includes a lightweight localization smoke, not the full SWE-bench harness.
+
+It can inspect SWE-bench Lite rows and run up to three isolated localization cases:
 
 ```powershell
 .\.venv\Scripts\cgstudio.exe swebench-localize `
   --manifest eval\manifests\generated\swebench_lite_manifest.json `
-  --cache-dir D:\contextgraph-swebench-cache `
+  --cache-dir <swebench-cache-dir> `
   --dry-run
 ```
 
-Latest official single-instance smoke:
+Boundaries:
 
-- instance: `astropy__astropy-12907`
-- repo: `astropy/astropy`
-- checkout: shallow fetch of `d16bfe05a744909de4b27f5875fe0d4ed41ce607`
-- isolated DB: `D:\contextgraph-swebench-cache\db\astropy__astropy-12907.sqlite`
-- result after FTS safety fix: `astropy/modeling/separable.py` is rank 1 under both `bm25_only` and `bm25_graph`
-- unchanged index reuse after performance fix: about `180s` in direct profile and under `5 min` in localization smoke
-- boundary: no Docker, no patch apply, no target repo tests, no embedding download, no full benchmark
+- no patch apply
+- no Docker
+- no target repository tests
+- no dependency install in target repositories
+- no full 300-case benchmark
+- GitHub checkout requires explicit `--allow-network`
+- SWE-bench cache and per-instance SQLite DBs must stay outside tracked source paths
 
-Latest three-instance official sample:
+Latest three-instance smoke recovered critical hits for Astropy, Django, and Matplotlib after adding Python module-level assignment chunks. See `eval/analysis/` for the detailed reports.
 
-- instances: `astropy__astropy-12907`, `django__django-10914`, `matplotlib__matplotlib-18869`
-- result: Astropy rank 1, Matplotlib rank 2, Django miss
-- analysis: `eval/analysis/swebench_three_instance_localization_report.md`
+## Security And Data Boundaries
 
-After Python module-level assignment chunks:
+Default behavior:
 
-- Django `django/conf/global_settings.py` recovered to rank 7
-- all three instances now have critical hits under both `bm25_only` and `bm25_graph`
-- follow-up analysis: `eval/analysis/swebench_three_instance_localization_after_assignment_chunks.md`
+- does not execute target repository code
+- does not install target repository dependencies
+- does not run target repository tests
+- does not apply patches
+- does not run Docker
+- does not download embeddings
+- does not require API keys
 
-## Recommended local vector model
+Sensitive config and assignment handling is key-name based. Obvious sensitive names such as `password`, `secret`, `token`, `api_key`, `private_key`, and `credential` keep the key or symbol searchable but do not write raw values into chunks, traces, or ContextPacks.
 
-Current recommended local code-specialized semantic baseline:
+## Known Limitations
 
-- model: `nomic-ai/CodeRankEmbed`
-- revision: `3c4b60807d71f79b43f3c4363786d9493691f8b1`
-- license: `MIT`
-- dimension: `768`
-- device used in this repo smoke: `cpu`
-- query prefix: `Represent this query for searching relevant code:`
+- Parser coverage is intentionally minimal and static.
+- TypeScript / JavaScript route detection only supports clear static Express-like patterns.
+- SQL parsing covers small `CREATE` statement patterns.
+- Config parsing uses simple path extraction for arrays such as `servers[].host`.
+- Graph relation types such as `uses_table`, `configures`, and `cross_lang_calls` are not implemented yet.
+- Optional vector quality depends on explicit local model configuration.
 
-Important:
+## Roadmap
 
-- it is only loaded when you explicitly enable vector indexing
-- `trust_remote_code=true` must be explicitly enabled
-- cache must live outside the repo
-- after the first download, normal local use should switch back to `EMBEDDING_LOCAL_FILES_ONLY=true`
+Deferred items:
 
-Example config is in [.env.example](/D:/contextgraph-studio/.env.example).
+- `nomic-ai/nomic-embed-code` 7B local smoke
+- `uses_table`
+- `configures`
+- `cross_lang_calls`
+- complete 300-case SWE-bench Lite benchmark
+- Docker harness
+- patch apply
+- target repository tests
+- frontend Studio
+- PyPI release
 
-## Lightweight fallback
+## Development
 
-If you want a lighter real semantic fallback instead of the code-specialized baseline:
+Run tests:
 
-- model: `sentence-transformers/all-MiniLM-L6-v2`
-- scope: `lightweight semantic fallback; not code-specialized`
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests
+```
 
-## High-resource deferred target
+GitHub Actions CI runs a lightweight no-model validation:
 
-Long-term target model kept deferred on current hardware:
+- checkout
+- setup Python
+- `pip install -e .[dev]`
+- `pytest tests`
 
-- `nomic-ai/nomic-embed-code`
-
-It is not the current default because this machine is still a poor fit for a safe local `7B` smoke.
-
-## Current smoke reference numbers
-
-These are current-machine smoke numbers only. They are not a general SLA.
-
-- CodeRankEmbed rebuild on this machine: about `35.74 s`
-- Cache footprint after download: about `640 MB`
-- 13-case eval: CodeRankEmbed beat MiniLM on this repo
-
-## Current validation status
-
-- `pytest tests` -> `148 passed, 1 warning`
-- `cgstudio eval ...` -> `13 active cases`, `failed_case_count = 0`
-- offline CodeRankEmbed eval metadata now records `model_smoke_status = coderankembed_smoke_passed`
-- `cgstudio index tests\fixtures\sample_ts_repo` -> `files=7`, `chunks=20`, `entities=27`, `relations=45`
-- `cgstudio index tests\fixtures\sample_structured_repo` -> `files=7`, `chunks=29`, `entities=32`, `relations=25`, `parse_errors=2`
-- `cgstudio eval --dataset eval\fixtures\structured_golden.json --config bm25_only --config bm25_graph` -> `4 active cases`, `failed_case_count = 0`
-- latest Phase 4D.2 structured fixture smoke with consumer source files -> `files=10`, `chunks=37`, `entities=43`, `relations=38`, `parse_errors=2`
-- `cgstudio swebench-inspect --dataset tests\fixtures\swebench_lite_sample.jsonl --max-instances 4` -> `4 instances`, `4 critical files`, `1 excluded file`
-- `cgstudio swebench-localize --dry-run` -> no clone, no DB, no index, no retrieve
-- local Git fixture localization smoke -> critical file hit under isolated DB
-- official single-instance localization smoke -> completed with isolated DB; critical file miss on `astropy__astropy-12907`
-- Astropy C.2 re-smoke -> dotted tokens no longer trigger fallback; critical file hit at rank 1
+Before publishing changes, check that generated DBs, reports, caches, `.env`, third-party checkouts, and model files are not tracked.
