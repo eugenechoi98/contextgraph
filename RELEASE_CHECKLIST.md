@@ -21,7 +21,7 @@
 
 - [x] public repository created
 - [x] repository URL added to pyproject.toml
-- [ ] CI passes on GitHub Actions
+- [x] CI passes on GitHub Actions
 - [ ] initial tag reviewed
 
 ## Publication

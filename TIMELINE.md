@@ -59,3 +59,4 @@
 - 2026-06-08: Entered Phase 5A, committed the Phase 4E-D.1 checkpoint, removed stale Phase 4B handoff draft, and started open-source readiness cleanup
 - 2026-06-09: Committed Phase 5A, added package data for task strategies, and validated wheel, sdist, MCP stdio, and uvx local wheel smoke
 - 2026-06-09: Committed Phase 5B, added MIT LICENSE, release checklist, and final GitHub publication audit materials
+- 2026-06-09: Closed the public GitHub baseline after initial push and successful Linux GitHub Actions CI

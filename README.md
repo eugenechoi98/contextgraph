@@ -1,5 +1,7 @@
 # ContextGraph Studio
 
+[![CI](https://github.com/eugenechoi98/contextgraph/actions/workflows/ci.yml/badge.svg)](https://github.com/eugenechoi98/contextgraph/actions/workflows/ci.yml)
+
 ContextGraph Studio is local context-retrieval infrastructure for AI coding agents.
 
 Repository: https://github.com/eugenechoi98/contextgraph
