@@ -24,6 +24,29 @@ Main entry points:
 
 Large coding tasks often fail because the agent misses the right files before it starts editing. ContextGraph Studio focuses on that earlier step: building a reproducible local index and returning a compact context pack that an agent can use.
 
+## Demo
+
+ContextGraph Studio can index its own repository and retrieve a structured `ContextPack`.
+
+Try these queries after `cgstudio index .`:
+
+```text
+how does the graph traversal work
+BM25 candidate lane source code
+how are embeddings stored and retrieved
+```
+
+The output highlights `required` files, `supporting` files, graph paths, and a `trace_id` for follow-up inspection.
+
+Verified local eval results:
+
+- BM25-only MRR: `0.7538`
+- BM25 + Graph MRR: `0.8179`
+- Recall@5 remained `0.8077`
+- Early SWE-bench Lite localization smoke: `3 / 3` critical files hit
+
+This is an early localization smoke, not the full SWE-bench Lite benchmark.
+
 ## Core Capabilities
 
 - Repository scanner with intake exclusions for eval fixtures, reports, temp files, caches, and generated outputs
@@ -66,7 +89,10 @@ python -m venv .venv
 .\.venv\Scripts\cgstudio.exe init-db
 .\.venv\Scripts\cgstudio.exe index .
 .\.venv\Scripts\cgstudio.exe retrieve "verify token auth flow"
+.\.venv\Scripts\cgstudio.exe retrieve "verify token auth flow" --repo-id <repo-id>
 ```
+
+`cgstudio index .` prints a `repo_id`. If you have indexed only one repository, `retrieve` can use the latest successful scan automatically. If you have indexed multiple repositories, pass `--repo-id <repo-id>` explicitly.
 
 Linux / macOS:
 
@@ -76,7 +102,10 @@ python -m venv .venv
 ./.venv/bin/cgstudio init-db
 ./.venv/bin/cgstudio index .
 ./.venv/bin/cgstudio retrieve "verify token auth flow"
+./.venv/bin/cgstudio retrieve "verify token auth flow" --repo-id <repo-id>
 ```
+
+`cgstudio index .` prints a `repo_id`. If you have indexed only one repository, `retrieve` can use the latest successful scan automatically. If you have indexed multiple repositories, pass `--repo-id <repo-id>` explicitly.
 
 PyPI publication is pending. Until then, release artifact validation uses a local wheel:
 

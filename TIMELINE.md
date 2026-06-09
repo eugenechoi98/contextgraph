@@ -60,3 +60,4 @@
 - 2026-06-09: Committed Phase 5A, added package data for task strategies, and validated wheel, sdist, MCP stdio, and uvx local wheel smoke
 - 2026-06-09: Committed Phase 5B, added MIT LICENSE, release checklist, and final GitHub publication audit materials
 - 2026-06-09: Closed the public GitHub baseline after initial push and successful Linux GitHub Actions CI
+- 2026-06-09: Verified clean-room external user Quick Start and added README demo guidance
