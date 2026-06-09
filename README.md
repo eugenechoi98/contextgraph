@@ -79,6 +79,24 @@ repository scan
 
 ## Quick Start
 
+Install from PyPI:
+
+```powershell
+python -m pip install contextgraph-studio==0.1.0
+cgstudio init-db
+cgstudio index .
+cgstudio retrieve "verify token auth flow"
+cgstudio retrieve "verify token auth flow" --repo-id <repo-id>
+```
+
+`cgstudio index .` prints a `repo_id`. If you have indexed only one repository, `retrieve` can use the latest successful scan automatically. If you have indexed multiple repositories, pass `--repo-id <repo-id>` explicitly.
+
+Run directly with `uvx`:
+
+```powershell
+uvx --from contextgraph-studio==0.1.0 cgstudio --help
+```
+
 Development install from a source checkout:
 
 Windows PowerShell:
@@ -107,23 +125,11 @@ python -m venv .venv
 
 `cgstudio index .` prints a `repo_id`. If you have indexed only one repository, `retrieve` can use the latest successful scan automatically. If you have indexed multiple repositories, pass `--repo-id <repo-id>` explicitly.
 
-PyPI publication is pending. Until then, release artifact validation uses a local wheel:
+Release artifact validation can still use a local wheel:
 
 ```powershell
-python -m pip install <local-wheel>
+python -m pip install <path-to-downloaded-wheel>
 cgstudio --help
-```
-
-Verified local `uvx` smoke:
-
-```powershell
-uvx --from <local-wheel> cgstudio --help
-```
-
-After PyPI publication, the planned command shape is:
-
-```powershell
-uvx --from contextgraph-studio cgstudio --help
 ```
 
 ## CLI Usage
@@ -273,7 +279,6 @@ Deferred items:
 - patch apply
 - target repository tests
 - frontend Studio
-- PyPI release
 
 ## Development
 

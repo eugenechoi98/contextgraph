@@ -61,3 +61,4 @@
 - 2026-06-09: Committed Phase 5B, added MIT LICENSE, release checklist, and final GitHub publication audit materials
 - 2026-06-09: Closed the public GitHub baseline after initial push and successful Linux GitHub Actions CI
 - 2026-06-09: Verified clean-room external user Quick Start and added README demo guidance
+- 2026-06-09: Published contextgraph-studio 0.1.0 to PyPI and passed pip, uvx, and isolated DB installation smoke

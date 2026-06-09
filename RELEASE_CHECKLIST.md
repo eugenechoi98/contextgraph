@@ -2,29 +2,39 @@
 
 ## Repository
 
-- [ ] git status clean
-- [ ] LICENSE present
-- [ ] README reviewed
-- [ ] no secrets
-- [ ] no tracked databases, caches, reports, or virtualenvs
+- [x] git status clean
+- [x] LICENSE present
+- [x] README reviewed
+- [x] no secrets
+- [x] no tracked databases, caches, reports, or virtualenvs
 
 ## Validation
 
-- [ ] pytest tests passes
-- [ ] wheel builds
-- [ ] sdist builds
-- [ ] wheel clean install smoke passes
+- [x] pytest tests passes
+- [x] wheel builds
+- [x] sdist builds
+- [x] wheel clean install smoke passes
 - [ ] MCP stdio wheel smoke passes
-- [ ] uvx local wheel smoke passes
+- [x] uvx local wheel smoke passes
+- [x] pip install smoke passes from PyPI
+- [x] uvx smoke passes from PyPI
 
 ## GitHub
 
 - [x] public repository created
 - [x] repository URL added to pyproject.toml
 - [x] CI passes on GitHub Actions
-- [ ] initial tag reviewed
+- [x] v0.1.0 tag created
+- [x] GitHub Release published
 
 ## Publication
 
-- [ ] decide whether to publish PyPI
-- [ ] do not publish without Eugene confirmation
+- [x] PyPI contextgraph-studio 0.1.0 published
+- [x] do not publish without Eugene confirmation
+
+## Boundaries
+
+- [ ] full SWE-bench Lite benchmark executed
+- [ ] Docker harness executed
+- [ ] patch apply executed
+- [ ] target repo tests executed
